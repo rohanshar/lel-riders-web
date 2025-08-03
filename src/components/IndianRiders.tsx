@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, Users, MapPin, Activity, Search, AlertCircle, CheckCircle, XCircle, Loader2, Map, List, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Users, MapPin, Activity, Search, AlertCircle, CheckCircle, XCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -11,9 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import IndianRidersMap from './IndianRidersMap';
 import { 
-  getCheckpointDistance, 
   getTotalDistanceForRider,
   getWaveStartTime,
   getControlsForRider,
@@ -53,7 +51,6 @@ interface Control {
 const IndianRiders: React.FC = () => {
   const { 
     rawTrackingData,
-    rawRouteData,
     loading: globalLoading,
     errors: globalError,
     refreshTracking
@@ -61,8 +58,6 @@ const IndianRiders: React.FC = () => {
 
   const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState('distance');
-  const [showMap, setShowMap] = useState(false);
   const [londonTime, setLondonTime] = useState<string>('');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [cardSortBy, setCardSortBy] = useState<Record<string, 'rank' | 'arrival'>>({});
@@ -79,7 +74,6 @@ const IndianRiders: React.FC = () => {
   
   const loading = globalLoading.tracking;
   const error = globalError.tracking?.message || null;
-  const routeData = rawRouteData;
 
   // Set last update time when data changes
   useEffect(() => {
@@ -111,8 +105,6 @@ const IndianRiders: React.FC = () => {
 
   // Update time since last update and time until next update
   useEffect(() => {
-    let hasTriggeredRefresh = false;
-
     const updateTimers = () => {
       if (!lastUpdateTime) return;
 
@@ -132,10 +124,11 @@ const IndianRiders: React.FC = () => {
       }
 
       // Trigger refresh at 10 minutes 30 seconds (630 seconds)
-      if (diffSeconds >= 630 && !hasTriggeredRefresh) {
-        hasTriggeredRefresh = true;
+      if (diffSeconds >= 630) {
         refreshTracking();
         setTimeUntilUpdate('refreshing...');
+        // Reset the last update time to current to prevent multiple refreshes
+        setLastUpdateTime(new Date());
         return;
       }
 
@@ -281,26 +274,13 @@ const IndianRiders: React.FC = () => {
       );
     }
     
-    // Sort riders
+    // Sort riders by distance (fixed)
     riders = [...riders].sort((a: Rider, b: Rider) => {
-      switch (sortBy) {
-        case 'distance':
-          return calculateRiderDistance(b) - calculateRiderDistance(a);
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'rider_no':
-          return a.rider_no.localeCompare(b.rider_no);
-        case 'status':
-          const statusOrder = { in_progress: 0, finished: 1, not_started: 2, dnf: 3 };
-          return (statusOrder[a.status as keyof typeof statusOrder] || 999) - 
-                 (statusOrder[b.status as keyof typeof statusOrder] || 999);
-        default:
-          return 0;
-      }
+      return calculateRiderDistance(b) - calculateRiderDistance(a);
     });
     
     return riders;
-  }, [trackingData, searchTerm, sortBy]);
+  }, [trackingData, searchTerm]);
 
   if (loading) return (
     <div className="flex justify-center items-center min-h-screen">
@@ -404,81 +384,42 @@ const IndianRiders: React.FC = () => {
         <div className="text-lg font-semibold">{londonTime}</div>
       </div>
 
-      {/* Last Updated and View Toggle */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
-          <div className="flex items-center text-muted-foreground">
-            <Clock className="h-4 w-4 mr-2" />
-            Updated <span className="font-medium text-foreground ml-1">{timeSinceUpdate}</span>
-          </div>
-          <div className="flex items-center text-muted-foreground">
-            <Activity className="h-4 w-4 mr-2" />
-            Next update <span className="font-medium text-foreground ml-1">
-              {timeUntilUpdate === 'refreshing...' ? (
-                <span className="inline-flex items-center gap-1">
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  refreshing...
-                </span>
-              ) : (
-                timeUntilUpdate
-              )}
-            </span>
-          </div>
+      {/* Last Updated */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
+        <div className="flex items-center text-muted-foreground">
+          <Clock className="h-4 w-4 mr-2" />
+          Updated <span className="font-medium text-foreground ml-1">{timeSinceUpdate}</span>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant={!showMap ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowMap(false)}
-            className="flex items-center gap-2"
-          >
-            <List className="h-4 w-4" />
-            List
-          </Button>
-          <Button
-            variant={showMap ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowMap(true)}
-            className="flex items-center gap-2"
-          >
-            <Map className="h-4 w-4" />
-            Map
-          </Button>
+        <div className="flex items-center text-muted-foreground">
+          <Activity className="h-4 w-4 mr-2" />
+          Next update <span className="font-medium text-foreground ml-1">
+            {timeUntilUpdate === 'refreshing...' ? (
+              <span className="inline-flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                refreshing...
+              </span>
+            ) : (
+              timeUntilUpdate
+            )}
+          </span>
         </div>
       </div>
 
-      {/* Map or List View */}
-      {showMap ? (
-        <IndianRidersMap trackingData={trackingData} routeData={routeData} />
-      ) : (
-        <>
-          {/* Filters and Search */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    type="text"
-                    placeholder="Search by name or rider number..."
-                    className="pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="distance">Sort by Distance</option>
-                  <option value="name">Sort by Name</option>
-                  <option value="rider_no">Sort by Rider No</option>
-                  <option value="status">Sort by Status</option>
-                </select>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Search */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="Search by name or rider number..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
           {/* Timeline View */}
           <div className="space-y-3">
@@ -707,8 +648,6 @@ const IndianRiders: React.FC = () => {
               });
             })()}
           </div>
-        </>
-      )}
 
       {/* Rider Detail Dialog */}
       <Dialog open={!!selectedRider} onOpenChange={(open: boolean) => !open && setSelectedRider(null)}>

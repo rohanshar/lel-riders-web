@@ -389,29 +389,13 @@ export const GlobalDataProvider: React.FC<GlobalDataProviderProps> = ({
     ]);
   }, [fetchRiders, fetchTracking, fetchRoutes]);
 
-  // Auto-refresh based on cache configuration
+  // Initial fetch only - no auto-refresh
   useEffect(() => {
     // Initial fetch
     fetchAllData();
     
-    // Set up refresh intervals
-    const intervals: NodeJS.Timeout[] = [];
-    
-    if (cacheDurations.riders < Infinity) {
-      intervals.push(setInterval(() => fetchRiders(), cacheDurations.riders));
-    }
-    if (cacheDurations.tracking < Infinity) {
-      intervals.push(setInterval(() => fetchTracking(), cacheDurations.tracking));
-    }
-    if (cacheDurations.routes < Infinity) {
-      intervals.push(setInterval(() => fetchRoutes(), cacheDurations.routes));
-    }
-    
     return () => {
-      // Cancel all intervals
-      intervals.forEach(clearInterval);
-      
-      // Abort any ongoing requests
+      // Abort any ongoing requests on unmount
       Object.values(abortControllersRef.current).forEach(controller => {
         controller?.abort();
       });
