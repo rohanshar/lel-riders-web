@@ -58,7 +58,6 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
   const { 
     rawTrackingData,
     rawRouteData,
-    trackingRiders,
     loading: globalLoading,
     errors: globalError
   } = useGlobalData();
@@ -69,6 +68,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
   const [showMap, setShowMap] = useState(false);
   const [londonTime, setLondonTime] = useState<string>('');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [cardSortBy, setCardSortBy] = useState<Record<string, 'rank' | 'arrival'>>({});
 
   // Determine current view based on URL
   const selectedView = (() => {
@@ -84,13 +84,6 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
     return rawTrackingData;
   }, [rawTrackingData]);
   
-  // Get Indian riders from processed tracking data
-  const processedIndianRiders = useMemo(() => {
-    if (!trackingRiders) return [];
-    return trackingRiders.filter(rider => 
-      rawTrackingData?.riders?.some((r: any) => r.rider_no === rider.rider_no)
-    );
-  }, [trackingRiders, rawTrackingData]);
 
   const loading = globalLoading.tracking;
   const error = globalError.tracking?.message || null;
@@ -711,11 +704,11 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
 
                   return (
                     <Card key={cardId} className="overflow-hidden">
-                      <CardHeader 
-                        className="py-3 cursor-pointer hover:bg-gray-50 transition-colors"
-                        onClick={() => toggleCardExpansion(cardId)}
-                      >
-                        <div className="flex items-center justify-between">
+                      <CardHeader className="py-3">
+                        <div 
+                          className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded p-2 -m-2"
+                          onClick={() => toggleCardExpansion(cardId)}
+                        >
                           <div className="flex items-center gap-3">
                             <CardTitle className="text-base">
                               {control.name} {!isStart && `(${control.km} km)`}
@@ -731,9 +724,44 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
                             )}
                           </div>
                         </div>
+                        {!isExpanded && riderCount > 0 && (() => {
+                          // Get latest 3 arrivals
+                          const sortedByArrival = [...ridersAtControl].sort((a: Rider, b: Rider) => {
+                            const aTime = a.checkpoints.find((cp: Checkpoint) => 
+                              cp.name === control.name || cp.name.includes(control.name)
+                            )?.time || '';
+                            const bTime = b.checkpoints.find((cp: Checkpoint) => 
+                              cp.name === control.name || cp.name.includes(control.name)
+                            )?.time || '';
+                            return bTime.localeCompare(aTime);
+                          }).slice(0, 3);
+                          
+                          return (
+                            <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2">
+                              <Activity className="h-3 w-3" />
+                              <span>Latest: {sortedByArrival.map(r => r.name.split(' ')[0]).join(', ')}</span>
+                            </div>
+                          );
+                        })()}
                       </CardHeader>
                       {isExpanded && riderCount > 0 && (
                         <CardContent className="pt-0 pb-3">
+                          <div className="mb-3 flex justify-end">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCardSortBy(prev => ({
+                                  ...prev,
+                                  [cardId]: prev[cardId] === 'arrival' ? 'rank' : 'arrival'
+                                }));
+                              }}
+                              className="text-xs"
+                            >
+                              Sort by: {cardSortBy[cardId] === 'arrival' ? 'Arrival Time ↓' : 'Rank (Elapsed Time)'}
+                            </Button>
+                          </div>
                           <div className="space-y-1">
                             {(() => {
                               // Sort riders by elapsed time
@@ -783,8 +811,19 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
                                 };
                               }).filter((item: RiderWithElapsedTime) => item.checkpoint);
                               
-                              // Sort by elapsed time (fastest first)
-                              ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => a.elapsedMinutes - b.elapsedMinutes);
+                              // Sort based on selected option
+                              const sortMode = cardSortBy[cardId] || 'rank';
+                              if (sortMode === 'arrival') {
+                                // Sort by arrival time (latest first)
+                                ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => {
+                                  const aTime = a.checkpoint?.time || '';
+                                  const bTime = b.checkpoint?.time || '';
+                                  return bTime.localeCompare(aTime);
+                                });
+                              } else {
+                                // Sort by elapsed time (fastest first)
+                                ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => a.elapsedMinutes - b.elapsedMinutes);
+                              }
                               
                               return ridersWithElapsedTime.map(({ rider, checkpoint, elapsedFormatted }: RiderWithElapsedTime, index: number) => {
                                 if (!checkpoint) return null;
@@ -799,14 +838,19 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
                                     }}
                                   >
                                     <div className="flex items-center gap-2 flex-1">
-                                      <span className="text-xs font-medium text-muted-foreground w-8">#{index + 1}</span>
+                                      {sortMode === 'rank' && (
+                                        <span className="text-xs font-medium text-muted-foreground w-8">#{index + 1}</span>
+                                      )}
                                       {getStatusIcon(rider.status)}
                                       <span className="font-medium">{rider.name}</span>
                                       <span className="text-xs text-muted-foreground">({rider.rider_no})</span>
                                     </div>
                                     <div className="flex items-center gap-4 text-xs">
                                       <span className="text-muted-foreground">{checkpoint.time}</span>
-                                      <Badge variant={index < 3 ? "default" : "secondary"} className="text-xs px-2 py-0 min-w-[60px] text-center">
+                                      <Badge 
+                                        variant={sortMode === 'rank' && index < 3 ? "default" : "secondary"} 
+                                        className="text-xs px-2 py-0 min-w-[60px] text-center"
+                                      >
                                         {elapsedFormatted}
                                       </Badge>
                                     </div>
