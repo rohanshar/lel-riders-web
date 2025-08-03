@@ -1,7 +1,6 @@
 import React from 'react';
-import { MapPin, Clock, Activity, TrendingUp, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { MapPin, Clock, TrendingUp } from 'lucide-react';
 import { Badge } from './ui/badge';
-import { Button } from './ui/button';
 import {
   Table,
   TableBody,
@@ -36,19 +35,6 @@ interface IndianRidersTableProps {
 }
 
 const IndianRidersTable: React.FC<IndianRidersTableProps> = ({ riders, onRiderClick }) => {
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'in_progress':
-        return <Activity className="h-4 w-4 text-blue-500" />;
-      case 'finished':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'dnf':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      default:
-        return <AlertCircle className="h-4 w-4 text-gray-400" />;
-    }
-  };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'in_progress':

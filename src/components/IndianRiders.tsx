@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, TrendingUp, TrendingDown, Users, MapPin, Activity, ChevronRight, Search, AlertCircle, CheckCircle, XCircle, Loader2, Map, List, Table } from 'lucide-react';
+import { Clock, Users, MapPin, Activity, Search, AlertCircle, CheckCircle, XCircle, Loader2, Map, List, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,6 @@ import {
 import IndianRidersMap from './IndianRidersMap';
 import IndianRidersTable from './IndianRidersTable';
 import { 
-  isLondonStartRider, 
   getCheckpointDistance, 
   getTotalDistanceForRider,
   getWaveStartTime,
@@ -57,17 +56,29 @@ interface TrackingData {
   riders: Rider[];
 }
 
-const IndianRiders: React.FC = () => {
+interface IndianRidersProps {
+  defaultView?: 'progress' | 'table' | 'timeline';
+}
+
+const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' }) => {
+  const location = useLocation();
   const [trackingData, setTrackingData] = useState<TrackingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedView, setSelectedView] = useState('progress');
   const [sortBy, setSortBy] = useState('distance');
   const [showMap, setShowMap] = useState(false);
   const [routeData, setRouteData] = useState<any>(null);
   const [londonTime, setLondonTime] = useState<string>('');
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  // Determine current view based on URL
+  const selectedView = (() => {
+    if (location.pathname === '/indian-riders/table') return 'table';
+    if (location.pathname === '/indian-riders/timeline') return 'timeline';
+    return 'progress';
+  })();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -307,6 +318,18 @@ const IndianRiders: React.FC = () => {
     return `${hours}h ${mins}m`;
   };
 
+  const toggleCardExpansion = (cardId: string) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(cardId)) {
+        newSet.delete(cardId);
+      } else {
+        newSet.add(cardId);
+      }
+      return newSet;
+    });
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'in_progress':
@@ -479,15 +502,43 @@ const IndianRiders: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Tabs for different views */}
-          <Tabs value={selectedView} onValueChange={setSelectedView}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="progress">Progress View</TabsTrigger>
-          <TabsTrigger value="table">Table View</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline View</TabsTrigger>
-        </TabsList>
+          {/* View Navigation */}
+          <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
+            <Link 
+              to="/indian-riders" 
+              className={`flex-1 text-center px-4 py-2 rounded-md font-medium transition-colors ${
+                selectedView === 'progress' 
+                  ? 'bg-white text-primary shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Progress View
+            </Link>
+            <Link 
+              to="/indian-riders/table" 
+              className={`flex-1 text-center px-4 py-2 rounded-md font-medium transition-colors ${
+                selectedView === 'table' 
+                  ? 'bg-white text-primary shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Table View
+            </Link>
+            <Link 
+              to="/indian-riders/timeline" 
+              className={`flex-1 text-center px-4 py-2 rounded-md font-medium transition-colors ${
+                selectedView === 'timeline' 
+                  ? 'bg-white text-primary shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Timeline View
+            </Link>
+          </div>
 
-        <TabsContent value="progress" className="space-y-4">
+          {/* Content based on selected view */}
+          {selectedView === 'progress' && (
+            <div className="space-y-4">
           {filteredRiders.map((rider, index) => (
             <Card 
               key={rider.rider_no} 
@@ -623,73 +674,123 @@ const IndianRiders: React.FC = () => {
               </CardContent>
             </Card>
           ))}
-        </TabsContent>
+            </div>
+          )}
 
-        <TabsContent value="timeline" className="space-y-6">
-          {trackingData.event.controls.slice(0, 10).map((control) => {
-            const ridersAtControl = filteredRiders.filter(rider => {
-              // Check if any checkpoint matches this control name
-              return rider.checkpoints.some(cp => {
-                // The checkpoint might be the control name or might contain it
-                return cp.name === control.name || 
-                       cp.name.includes(control.name) || 
-                       (control.name === 'Writtle' && cp.name === 'Start');
-              });
-            });
+          {selectedView === 'table' && (
+            <IndianRidersTable 
+              riders={filteredRiders}
+              onRiderClick={setSelectedRider}
+            />
+          )}
 
-            return (
-              <Card key={control.id}>
-                <CardHeader>
-                  <CardTitle className="text-lg">
-                    {control.name} ({control.km} km)
-                  </CardTitle>
-                  <CardDescription>{control.leg} Leg</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {ridersAtControl.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No riders reached yet</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {ridersAtControl.map(rider => {
-                        const checkpoint = rider.checkpoints.find(cp => 
-                          cp.name === control.name || 
-                          cp.name.includes(control.name) || 
-                          (control.name === 'Writtle' && cp.name === 'Start')
-                        );
-                        if (!checkpoint) return null;
+          {selectedView === 'timeline' && (
+            <div className="space-y-3">
+              {(() => {
+                // Create merged controls list, treating Writtle and London as "Start"
+                const mergedControls = trackingData.event.controls.reduce((acc, control) => {
+                  // Skip London control, merge it with Writtle as "Start"
+                  if (control.name === 'London') return acc;
+                  
+                  // Rename Writtle to Start and set km to 0
+                  if (control.name === 'Writtle') {
+                    return [...acc, { ...control, name: 'Start', km: 0, id: 'start' }];
+                  }
+                  
+                  return [...acc, control];
+                }, [] as Control[]);
 
-                        return (
-                          <div 
-                            key={rider.rider_no} 
-                            className="flex items-center justify-between p-2 rounded hover:bg-gray-50 cursor-pointer"
-                            onClick={() => setSelectedRider(rider)}
-                          >
-                            <div className="flex items-center gap-3">
-                              {getStatusIcon(rider.status)}
-                              <span className="font-medium">{rider.name}</span>
-                              <span className="text-sm text-muted-foreground">({rider.rider_no})</span>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              <span>{checkpoint.time}</span>
-                            </div>
+                return mergedControls.slice(0, 10).map((control) => {
+                  const isStart = control.name === 'Start';
+                  const cardId = control.id || control.name;
+                  const isExpanded = expandedCards.has(cardId);
+                  
+                  // For Start, include riders who have "Start", "Writtle", or "London" in their checkpoints
+                  const ridersAtControl = filteredRiders.filter(rider => {
+                    if (isStart) {
+                      return rider.checkpoints.some(cp => 
+                        cp.name === 'Start' || 
+                        cp.name === 'Writtle' || 
+                        cp.name === 'London' ||
+                        cp.name.includes('Start')
+                      );
+                    }
+                    return rider.checkpoints.some(cp => {
+                      return cp.name === control.name || 
+                             cp.name.includes(control.name);
+                    });
+                  });
+
+                  const riderCount = ridersAtControl.length;
+
+                  return (
+                    <Card key={cardId} className="overflow-hidden">
+                      <CardHeader 
+                        className="py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={() => toggleCardExpansion(cardId)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <CardTitle className="text-base">
+                              {control.name} {!isStart && `(${control.km} km)`}
+                            </CardTitle>
+                            <Badge variant="secondary" className="text-xs">
+                              {riderCount} {riderCount === 1 ? 'rider' : 'riders'}
+                            </Badge>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </TabsContent>
-        
-        <TabsContent value="table" className="mt-4">
-          <IndianRidersTable 
-            riders={filteredRiders}
-            onRiderClick={setSelectedRider}
-          />
-        </TabsContent>
-      </Tabs>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground">{control.leg} Leg</span>
+                            {riderCount > 0 && (
+                              isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      {isExpanded && riderCount > 0 && (
+                        <CardContent className="pt-0 pb-3">
+                          <div className="space-y-1">
+                            {ridersAtControl.map(rider => {
+                              const checkpoint = rider.checkpoints.find(cp => {
+                                if (isStart) {
+                                  return cp.name === 'Start' || 
+                                         cp.name === 'Writtle' || 
+                                         cp.name === 'London' ||
+                                         cp.name.includes('Start');
+                                }
+                                return cp.name === control.name || 
+                                       cp.name.includes(control.name);
+                              });
+                              if (!checkpoint) return null;
+
+                              return (
+                                <div 
+                                  key={rider.rider_no} 
+                                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer text-sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedRider(rider);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {getStatusIcon(rider.status)}
+                                    <span className="font-medium">{rider.name}</span>
+                                    <span className="text-xs text-muted-foreground">({rider.rider_no})</span>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    <span>{checkpoint.time}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                });
+              })()}
+            </div>
+          )}
         </>
       )}
 

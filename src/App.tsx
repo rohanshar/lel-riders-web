@@ -4,9 +4,11 @@ import HomePage from './components/HomePage';
 import WavesSummary from './components/WavesSummary';
 import WaveDetail from './components/WaveDetail';
 import RidersList from './components/RidersList';
-import IndianRiders from './components/IndianRiders';
+import IndianRidersProgress from './components/IndianRidersProgress';
+import IndianRidersTableView from './components/IndianRidersTableView';
+import IndianRidersTimeline from './components/IndianRidersTimeline';
 import RouteMap from './components/RouteMap';
-import { Menu, X, Users, Flag, Home, Bike, Grid3x3, Map } from 'lucide-react';
+import { Menu, X, Users, Flag, Home, Grid3x3, Map } from 'lucide-react';
 import { usePageTracking } from './hooks/useAnalytics';
 import { RiderDataProvider } from './contexts';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -24,7 +26,12 @@ function NavBar() {
     { path: '/indian-riders', label: 'Indian Riders', icon: Flag },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    if (path === '/indian-riders') {
+      return location.pathname.startsWith('/indian-riders');
+    }
+    return location.pathname === path;
+  };
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
@@ -128,7 +135,9 @@ function AppContent() {
               <Route path="/wave/:wave" element={<AsyncBoundary><WaveDetail /></AsyncBoundary>} />
               <Route path="/route" element={<AsyncBoundary><RouteMap /></AsyncBoundary>} />
               <Route path="/all-riders" element={<AsyncBoundary><RidersList /></AsyncBoundary>} />
-              <Route path="/indian-riders" element={<AsyncBoundary><IndianRiders /></AsyncBoundary>} />
+              <Route path="/indian-riders" element={<AsyncBoundary><IndianRidersProgress /></AsyncBoundary>} />
+              <Route path="/indian-riders/table" element={<AsyncBoundary><IndianRidersTableView /></AsyncBoundary>} />
+              <Route path="/indian-riders/timeline" element={<AsyncBoundary><IndianRidersTimeline /></AsyncBoundary>} />
             </Routes>
           </div>
         </main>
