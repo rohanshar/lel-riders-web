@@ -178,11 +178,9 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <GlobalDataProvider>
-          <RiderDataProvider>
-            <AppContent />
-          </RiderDataProvider>
-        </GlobalDataProvider>
+        <RiderDataProvider>
+          <AppContent />
+        </RiderDataProvider>
       </Router>
     </ErrorBoundary>
   );

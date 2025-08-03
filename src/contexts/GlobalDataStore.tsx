@@ -55,8 +55,11 @@ export const GlobalDataProvider: React.FC<GlobalDataProviderProps> = ({
   children,
   cacheConfig = {}
 }) => {
-  // Cache configuration
-  const cacheDurations = { ...CACHE_DURATIONS, ...cacheConfig };
+  // Cache configuration - memoize to prevent infinite loops
+  const cacheDurations = useMemo(() => ({
+    ...CACHE_DURATIONS,
+    ...cacheConfig
+  }), [cacheConfig]);
 
   // Raw data
   const [rawRiders, setRawRiders] = useState<Rider[]>([]);
@@ -340,19 +343,21 @@ export const GlobalDataProvider: React.FC<GlobalDataProviderProps> = ({
     const intervals: NodeJS.Timeout[] = [];
     
     if (cacheDurations.riders < Infinity) {
-      intervals.push(setInterval(fetchRiders, cacheDurations.riders));
+      intervals.push(setInterval(() => fetchRiders(), cacheDurations.riders));
     }
     if (cacheDurations.tracking < Infinity) {
-      intervals.push(setInterval(fetchTracking, cacheDurations.tracking));
+      intervals.push(setInterval(() => fetchTracking(), cacheDurations.tracking));
     }
     if (cacheDurations.routes < Infinity) {
-      intervals.push(setInterval(fetchRoutes, cacheDurations.routes));
+      intervals.push(setInterval(() => fetchRoutes(), cacheDurations.routes));
     }
     
     return () => {
       intervals.forEach(clearInterval);
     };
-  }, [fetchAllData, fetchRiders, fetchTracking, fetchRoutes, cacheDurations]);
+    // Only run on mount and when cache durations change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheDurations]);
 
   // Data access functions
   const getRiderById = useCallback((riderNo: string) => {
