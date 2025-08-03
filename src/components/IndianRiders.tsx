@@ -52,7 +52,8 @@ const IndianRiders: React.FC = () => {
     rawTrackingData,
     rawRouteData,
     loading: globalLoading,
-    errors: globalError
+    errors: globalError,
+    refreshTracking
   } = useGlobalData();
 
   const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
@@ -63,6 +64,9 @@ const IndianRiders: React.FC = () => {
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [cardSortBy, setCardSortBy] = useState<Record<string, 'rank' | 'arrival'>>({});
   const [showStats, setShowStats] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
+  const [timeSinceUpdate, setTimeSinceUpdate] = useState<string>('');
+  const [timeUntilUpdate, setTimeUntilUpdate] = useState<string>('');
 
   // Map GlobalData to component's expected format
   const trackingData = useMemo(() => {
@@ -73,6 +77,13 @@ const IndianRiders: React.FC = () => {
   const loading = globalLoading.tracking;
   const error = globalError.tracking?.message || null;
   const routeData = rawRouteData;
+
+  // Set last update time when data changes
+  useEffect(() => {
+    if (trackingData && trackingData.last_updated) {
+      setLastUpdateTime(new Date(trackingData.last_updated));
+    }
+  }, [trackingData]);
 
   // Update London time every second
   useEffect(() => {
@@ -94,6 +105,58 @@ const IndianRiders: React.FC = () => {
     const interval = setInterval(updateLondonTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Update time since last update and time until next update
+  useEffect(() => {
+    let hasTriggeredRefresh = false;
+
+    const updateTimers = () => {
+      if (!lastUpdateTime) return;
+
+      const now = new Date();
+      const diffMs = now.getTime() - lastUpdateTime.getTime();
+      const diffSeconds = Math.floor(diffMs / 1000);
+      const diffMinutes = Math.floor(diffSeconds / 60);
+      const seconds = diffSeconds % 60;
+
+      // Format time since update
+      if (diffMinutes === 0) {
+        setTimeSinceUpdate(`${seconds}s ago`);
+      } else if (diffMinutes === 1) {
+        setTimeSinceUpdate(`1 min ${seconds}s ago`);
+      } else {
+        setTimeSinceUpdate(`${diffMinutes} mins ${seconds}s ago`);
+      }
+
+      // Trigger refresh at 10 minutes 30 seconds (630 seconds)
+      if (diffSeconds >= 630 && !hasTriggeredRefresh) {
+        hasTriggeredRefresh = true;
+        refreshTracking();
+        setTimeUntilUpdate('refreshing...');
+        return;
+      }
+
+      // Calculate time until next update (10 minutes = 600 seconds)
+      const nextUpdateSeconds = 600 - diffSeconds;
+      if (nextUpdateSeconds > 0) {
+        const nextMinutes = Math.floor(nextUpdateSeconds / 60);
+        const nextSeconds = nextUpdateSeconds % 60;
+        if (nextMinutes === 0) {
+          setTimeUntilUpdate(`in ${nextSeconds}s`);
+        } else if (nextMinutes === 1) {
+          setTimeUntilUpdate(`in 1 min ${nextSeconds}s`);
+        } else {
+          setTimeUntilUpdate(`in ${nextMinutes} mins ${nextSeconds}s`);
+        }
+      } else {
+        setTimeUntilUpdate('any moment...');
+      }
+    };
+
+    updateTimers();
+    const interval = setInterval(updateTimers, 1000);
+    return () => clearInterval(interval);
+  }, [lastUpdateTime, refreshTracking]);
 
   // Toggle card expansion
   const toggleCardExpansion = (cardId: string) => {
@@ -299,10 +362,25 @@ const IndianRiders: React.FC = () => {
       </div>
 
       {/* Last Updated and View Toggle */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center text-sm text-muted-foreground">
-          <Clock className="h-4 w-4 mr-2" />
-          Last updated: {new Date(trackingData.last_updated).toLocaleString()}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
+          <div className="flex items-center text-muted-foreground">
+            <Clock className="h-4 w-4 mr-2" />
+            Updated <span className="font-medium text-foreground ml-1">{timeSinceUpdate}</span>
+          </div>
+          <div className="flex items-center text-muted-foreground">
+            <Activity className="h-4 w-4 mr-2" />
+            Next update <span className="font-medium text-foreground ml-1">
+              {timeUntilUpdate === 'refreshing...' ? (
+                <span className="inline-flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  refreshing...
+                </span>
+              ) : (
+                timeUntilUpdate
+              )}
+            </span>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button

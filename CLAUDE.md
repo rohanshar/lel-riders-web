@@ -6,124 +6,185 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 LEL 2025 Riders Tracking Web App - A React-based application for tracking riders in the London-Edinburgh-London 2025 cycling event. The app displays real-time rider progress, including Indian riders specifically, with timeline views and interactive maps.
 
+This is a **monorepo** containing multiple projects:
+- **`lel-riders-web/`** - Main production app (Create React App + Craco)
+- **`lel-riders-web2/`** - Modern rewrite (Vite + React Query + Zustand)
+- **Python scripts** - Data extraction and processing
+- **`testing/`** - Node.js utilities for token extraction
+
 ## Development Commands
 
-### Running the Application
+### Main App (`lel-riders-web/`)
 ```bash
 npm start        # Start development server on port 3000
 npm run build    # Build for production (uses Craco)
 npm test         # Run tests in interactive watch mode
+
+# Manual code quality checks (no npm scripts configured)
+npx eslint src --ext .ts,.tsx  # Run ESLint
+npx tsc --noEmit               # Run TypeScript type checking
 ```
 
-### Code Quality
+### Modern App (`lel-riders-web2/`)
 ```bash
-npx eslint src   # Run ESLint manually (no npm script configured)
-npx tsc --noEmit # Run TypeScript type checking manually
+npm run dev          # Vite development server
+npm run build        # TypeScript + Vite build
+npm run lint         # ESLint
+npm run typecheck    # TypeScript checking
+npm run format       # Prettier formatting
+npm run format:check # Check formatting
+npm run preview      # Preview production build
 ```
 
-### Deployment
+### Data Management & Deployment
 ```bash
+# In project root
 ./update-s3-cors.sh  # Update CORS configuration for S3 bucket
 ./upload-to-s3.sh    # Upload data files to S3
+
+# Python scripts for data extraction
+python generate_riders_list.py    # Extract rider data
+python tracking_riders_new.py     # Generate tracking updates
+```
+
+### Testing Individual Components
+For the main app, use Jest's pattern matching:
+```bash
+npm test -- IndianRiders        # Test specific component
+npm test -- --coverage         # Run with coverage report
 ```
 
 ## Key Architecture
 
-### Route Configuration
-The event has TWO start points that are handled by the routing logic in `src/config/lel-route.ts`:
-- **London Start**: For L-series wave riders (LA, LB, LC, etc.) - 1604km total
-- **Writtle Start**: For all other riders (A, B, C, etc.) - 1540km total
+### Dual Start System
+The event has TWO start points handled by `src/config/lel-route.ts`:
+- **London Start**: L-series waves (LA, LB, LC, etc.) - 1604km total
+- **Writtle Start**: All other waves (A, B, C, etc.) - 1540km total
 
-Both routes merge at Northstowe and continue on the same path. The route system includes:
-- Wave-based rider identification (`isLondonStartRider()`)
-- Dynamic control point assignment (`getControlsForRider()`)
-- Distance calculations for each checkpoint
+Routes merge at Northstowe. The system provides:
+- `isLondonStartRider(riderId)` - Determines start location by wave
+- `getControlsForRider(riderId)` - Returns correct control sequence
+- `getTotalDistanceForRider(riderId)` - Returns correct total distance
 
 ### State Management Architecture
 
-The application uses TWO context providers for state management:
+**Dual Context Pattern** - Choose based on needs:
 
 1. **RiderDataProvider** (`src/contexts/RiderDataContext.tsx`)
-   - Provides basic rider data fetching and caching
-   - Uses `useRiders` hook with 5-minute cache
-   - Includes utility hooks like `useWaveData` for filtered data
+   - Simple data fetching with 5-minute cache
+   - Use for basic rider displays
+   - Provides `useWaveData` hook for filtered data
 
 2. **GlobalDataProvider** (`src/contexts/GlobalDataStore.tsx`)
-   - Enhanced data store with comprehensive state management
-   - Manages riders, tracking data, routes, and statistics
-   - Implements sophisticated caching with configurable durations
-   - Provides computed values like wave statistics and control progress
+   - Enhanced store with comprehensive caching
+   - Use for complex views needing real-time updates
+   - Manages riders, tracking, routes, and computed statistics
+   - Configurable cache durations per data type
 
 ### Data Processing Pipeline
 
-The application uses a modular data processing system in `src/utils/dataProcessors/`:
-- `riderProcessors.ts`: Enhances rider data with computed fields
-- `trackingProcessors.ts`: Processes real-time tracking information
-- `waveProcessors.ts`: Calculates wave-specific statistics
-- `controlProcessors.ts`: Manages control point progress
-- `timeProcessors.ts`: Handles UK time conversions and elapsed time calculations
+Modular processors in `src/utils/dataProcessors/`:
+- **riderProcessors**: Enhances with `searchableText`, `waveCode`
+- **trackingProcessors**: Merges tracking with rider data
+- **waveProcessors**: Computes wave statistics (started, finished, DNS)
+- **controlProcessors**: Calculates control point progress
+- **timeProcessors**: UK timezone handling with BST awareness
 
-### View Components
-- **HomePage**: Landing page with event overview
-- **WavesSummary**: Overview of all rider waves
-- **WaveDetail**: Detailed view of a specific wave
-- **RidersList**: Searchable list of all riders
-- **IndianRiders**: Main component with timeline view showing control point progress
-- **IndianRidersTimeline**: Timeline view showing control points with expandable cards
-- **IndianRidersMap**: Interactive map view using Leaflet
-- **IndianRidersTable**: Tabular view of rider data
-- **RouteMap**: Full route visualization
+### Component Architecture
 
-## Tech Stack
+**View Components:**
+- `IndianRiders` - Main container with tab navigation
+- `IndianRidersTimeline` - Control point progress cards (limited to 10 controls)
+- `IndianRidersMap` - Leaflet map (lazy-loaded on tab switch)
+- `WavesSummary` - All waves overview with statistics
+- `WaveDetail` - Single wave deep dive
 
-- **React 19.1.1** with TypeScript (strict mode enabled)
-- **Create React App** with Craco for build configuration
-- **Tailwind CSS** for styling with custom UI components
-- **React Router v7** for navigation
-- **Leaflet** for interactive maps
-- **Radix UI** for accessible UI primitives
-- **AWS S3** for data hosting (CORS configured)
-- **Path aliasing**: `@/` maps to `src/`
+**Shared Components:**
+- `AsyncBoundary` - Loading/error states wrapper
+- `ErrorBoundary` - Application-level error handling
+- `PageHeader` - Consistent page headers
 
-## Data Sources
+### Performance Patterns
 
-All data is hosted on AWS S3 with automatic refresh:
-- Riders list: `https://lel-riders-data-2025.s3.ap-south-1.amazonaws.com/riders.json`
-- Indian riders tracking: `https://lel-riders-data-2025.s3.ap-south-1.amazonaws.com/indian-riders-tracking.json`
-- Route data: `https://lel-riders-data-2025.s3.ap-south-1.amazonaws.com/routes.json`
+1. **Memoization Strategy**:
+   ```typescript
+   const filteredRiders = useMemo(() => 
+     riders.filter(r => r.wave === selectedWave),
+     [riders, selectedWave]
+   );
+   ```
 
-Data refresh intervals:
-- Rider data: 5 minutes
-- Tracking data: 30 seconds (when using GlobalDataProvider)
-- Route data: Cached indefinitely
+2. **Abort Controller Pattern**:
+   ```typescript
+   useEffect(() => {
+     const controller = new AbortController();
+     fetchData(controller.signal);
+     return () => controller.abort();
+   }, []);
+   ```
 
-## Important Implementation Details
+3. **Timeline Optimization**: First 10 controls only to prevent DOM overload
+
+## Data Sources & Refresh Intervals
+
+All S3-hosted with CORS enabled:
+- **Riders**: 5-minute refresh - `riders.json`
+- **Tracking**: 30-second refresh (GlobalDataProvider) - `indian-riders-tracking.json`
+- **Routes**: Cached indefinitely - `routes.json`
+
+S3 bucket: `lel-riders-data-2025.s3.ap-south-1.amazonaws.com`
+
+## Critical Implementation Details
 
 ### Time Handling
-- All times displayed in UK time (Europe/London timezone)
-- Live London time clock shown in the UI
-- Elapsed time calculations account for BST
-- Time formatting utilities in `src/utils/formatUtils.ts`
+- Display in UK time (`Europe/London`) with BST awareness
+- Use `formatElapsedTime()` for ride durations
+- Live clock component uses 1-second interval
 
-### Performance Optimizations
-- Extensive use of `useMemo` for expensive computations
-- Data filtering and sorting are memoized
-- Route controls limited to first 10 for timeline view
-- Map data loaded on-demand when map view is selected
-- Virtual scrolling considered for large rider lists
+### Search Implementation
+- Pre-computed `searchableText` field includes name and rider ID
+- Case-insensitive substring matching
+- Debounce search input for performance
 
-### Error Handling
-- ErrorBoundary component wraps the application
-- AsyncBoundary provides loading states
-- API errors typed with `ApiError` interface
-- Graceful fallbacks for missing data
+### Map Integration
+- Leaflet tiles from OpenStreetMap
+- Custom marker icons for controls and rider positions
+- Bounds calculated dynamically from route data
 
-## Deployment
+### Error States
+- Network errors: "Failed to load data. Please try again."
+- No data: "No riders found" with appropriate context
+- Tracking unavailable: Graceful degradation to basic view
 
-- **Vercel**: Primary deployment platform (vercel.json configured)
-- **S3 Data Updates**: Use provided shell scripts for data updates
-- **CORS Configuration**: S3 bucket requires CORS for cross-origin requests
+## TypeScript Patterns
 
-## Testing
+### Type Imports
+```typescript
+import type { Rider, TrackingData } from '@/types';
+```
 
-The project uses the standard Create React App test setup. No additional test commands are configured beyond `npm test`.
+### API Error Handling
+```typescript
+interface ApiError {
+  message: string;
+  status?: number;
+  data?: unknown;
+}
+```
+
+### Route Configuration Types
+```typescript
+interface RouteControl {
+  id: string;
+  name: string;
+  distance: number;
+  cutoff: string;
+}
+```
+
+## Deployment Notes
+
+- **Vercel**: Automatic deployments from main branch
+- **Environment**: No environment variables required (all data public)
+- **CORS**: Must be configured on S3 bucket for API access
+- **Build Output**: Static files, no server required
