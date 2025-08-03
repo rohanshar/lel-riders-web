@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { riderService } from '../services';
 import { Rider, ApiError } from '../types/index';
 import { API_CONFIG } from '../config/api';
@@ -32,8 +32,11 @@ export const useRiders = (options: UseRidersOptions = {}): UseRidersReturn => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  
+  // Use ref to store abort controller
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchRiders = useCallback(async (force = false) => {
+  const fetchRiders = useCallback(async (force = false, signal?: AbortSignal) => {
     const now = Date.now();
     
     // Use cache if available and not stale
@@ -47,7 +50,7 @@ export const useRiders = (options: UseRidersOptions = {}): UseRidersReturn => {
     setError(null);
 
     try {
-      const data = await riderService.fetchRiders();
+      const data = await riderService.fetchRiders(signal);
       
       // Update cache
       ridersCache = data;
@@ -57,27 +60,43 @@ export const useRiders = (options: UseRidersOptions = {}): UseRidersReturn => {
       setLastFetched(new Date());
     } catch (err) {
       const apiError = err as ApiError;
-      setError(apiError);
       
-      if (onError) {
-        onError(apiError);
+      // Only set error if it's not an abort error
+      if (apiError.code !== 'REQUEST_ABORTED') {
+        setError(apiError);
+        
+        if (onError) {
+          onError(apiError);
+        }
       }
     } finally {
       setLoading(false);
     }
   }, [cacheTime, onError]);
 
-  const refetch = useCallback(() => fetchRiders(true), [fetchRiders]);
+  const refetch = useCallback(() => {
+    // Cancel any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    return fetchRiders(true, abortControllerRef.current.signal);
+  }, [fetchRiders]);
 
   useEffect(() => {
+    
     if (autoFetch) {
-      fetchRiders();
-    }
+      // Create new abort controller for this effect
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      
+      // Fetch data
+      fetchRiders(false, controller.signal);
 
-    // Cleanup function to cancel requests
-    return () => {
-      riderService.cancelAllRequests();
-    };
+      return () => {
+        controller.abort();
+      };
+    }
     // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

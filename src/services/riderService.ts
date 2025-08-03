@@ -10,7 +10,8 @@ class RiderService {
   private async fetchWithRetry<T>(
     url: string,
     options: RequestInit = {},
-    retries: number = API_CONFIG.request.retries
+    retries: number = API_CONFIG.request.retries,
+    externalSignal?: AbortSignal
   ): Promise<T> {
     const controller = new AbortController();
     const key = url;
@@ -19,7 +20,17 @@ class RiderService {
     this.cancelRequest(key);
     this.abortControllers.set(key, controller);
 
-    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.request.timeout);
+    // Combine external signal with timeout signal
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, API_CONFIG.request.timeout);
+
+    // Listen to external abort signal
+    if (externalSignal) {
+      externalSignal.addEventListener('abort', () => {
+        controller.abort();
+      });
+    }
 
     try {
       const response = await fetch(url, {
@@ -42,13 +53,13 @@ class RiderService {
 
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          throw new Error('Request timeout');
+          throw new Error('Request aborted');
         }
 
-        if (retries > 0 && !error.message.includes('abort')) {
+        if (retries > 0 && error.message !== 'Request aborted') {
           // Wait before retrying
           await new Promise(resolve => setTimeout(resolve, API_CONFIG.request.retryDelay));
-          return this.fetchWithRetry<T>(url, options, retries - 1);
+          return this.fetchWithRetry<T>(url, options, retries - 1, externalSignal);
         }
       }
 
@@ -78,14 +89,14 @@ class RiderService {
   /**
    * Fetch all riders
    */
-  async fetchRiders(): Promise<Rider[]> {
+  async fetchRiders(signal?: AbortSignal): Promise<Rider[]> {
     try {
-      const data = await this.fetchWithRetry<Rider[]>(getApiUrl('riders'));
+      const data = await this.fetchWithRetry<Rider[]>(getApiUrl('riders'), {}, API_CONFIG.request.retries, signal);
       return data;
     } catch (error) {
       const apiError: ApiError = {
         message: error instanceof Error ? error.message : 'Failed to fetch riders',
-        code: 'FETCH_RIDERS_ERROR',
+        code: error instanceof Error && error.message === 'Request aborted' ? 'REQUEST_ABORTED' : 'FETCH_RIDERS_ERROR',
       };
       throw apiError;
     }
