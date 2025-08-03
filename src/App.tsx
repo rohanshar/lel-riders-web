@@ -10,7 +10,7 @@ import IndianRidersTimeline from './components/IndianRidersTimeline';
 import RouteMap from './components/RouteMap';
 import { Menu, X, Users, Flag, Home, Grid3x3, Map } from 'lucide-react';
 import { usePageTracking } from './hooks/useAnalytics';
-import { RiderDataProvider } from './contexts';
+import { RiderDataProvider, GlobalDataProvider } from './contexts';
 import ErrorBoundary from './components/ErrorBoundary';
 import AsyncBoundary from './components/AsyncBoundary';
 
@@ -178,9 +178,11 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <RiderDataProvider>
-          <AppContent />
-        </RiderDataProvider>
+        <GlobalDataProvider>
+          <RiderDataProvider>
+            <AppContent />
+          </RiderDataProvider>
+        </GlobalDataProvider>
       </Router>
     </ErrorBoundary>
   );
