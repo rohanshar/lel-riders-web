@@ -46,4 +46,4 @@ Builds the app for production to the `build` folder
 
 ## License
 
-This project is open source.
+This project is open source and available under the MIT License.
