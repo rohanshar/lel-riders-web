@@ -4,67 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-LEL 2025 Riders Tracking Web App - A React-based application for tracking riders in the London-Edinburgh-London 2025 cycling event. The app displays real-time rider progress, including Indian riders specifically, with timeline views and interactive maps.
-
-This is a **monorepo** containing multiple projects:
-- **`lel-riders-web/`** - Main production app (Create React App + Craco)
-- **`lel-riders-web2/`** - Modern rewrite (Vite + React Query + Zustand)
-- **Python scripts** - Data extraction and processing
-- **`testing/`** - Node.js utilities for token extraction
+LEL 2025 Riders Tracking Web App - A React-based application for tracking riders in the London-Edinburgh-London 2025 cycling event. The app displays real-time rider progress across 23 checkpoints, with special focus on Indian riders, featuring timeline views, interactive maps, and wave-based statistics.
 
 ## Development Commands
 
-### Main App (`lel-riders-web/`)
 ```bash
 npm start        # Start development server on port 3000
-npm run build    # Build for production (uses Craco)
+npm run build    # Build for production (uses CRACO)
 npm test         # Run tests in interactive watch mode
 
-# Manual code quality checks (no npm scripts configured)
+# Code quality checks - run these before committing
 npx eslint src --ext .ts,.tsx  # Run ESLint
 npx tsc --noEmit               # Run TypeScript type checking
-```
-
-### Modern App (`lel-riders-web2/`)
-```bash
-npm run dev          # Vite development server
-npm run build        # TypeScript + Vite build
-npm run lint         # ESLint
-npm run typecheck    # TypeScript checking
-npm run format       # Prettier formatting
-npm run format:check # Check formatting
-npm run preview      # Preview production build
-```
-
-### Data Management & Deployment
-```bash
-# In project root
-./update-s3-cors.sh  # Update CORS configuration for S3 bucket
-./upload-to-s3.sh    # Upload data files to S3
-
-# Python scripts for data extraction
-python generate_riders_list.py    # Extract rider data
-python tracking_riders_new.py     # Generate tracking updates
-```
-
-### Testing Individual Components
-For the main app, use Jest's pattern matching:
-```bash
-npm test -- IndianRiders        # Test specific component
-npm test -- --coverage         # Run with coverage report
 ```
 
 ## Key Architecture
 
 ### Dual Start System
 The event has TWO start points handled by `src/config/lel-route.ts`:
-- **London Start**: L-series waves (LA, LB, LC, etc.) - 1604km total
-- **Writtle Start**: All other waves (A, B, C, etc.) - 1540km total
+- **London Start**: L-series waves (LA, LB, LC, etc.) - 1557km total
+- **Writtle Start**: All other waves (A, B, C, etc.) - 1537km total
 
 Routes merge at Northstowe. The system provides:
 - `isLondonStartRider(riderId)` - Determines start location by wave
 - `getControlsForRider(riderId)` - Returns correct control sequence
-- `getTotalDistanceForRider(riderId)` - Returns correct total distance
+- `getTotalDistanceForRider(riderId)` - Returns correct total distance (1557km or 1537km)
 
 ### State Management Architecture
 
@@ -80,6 +44,7 @@ Routes merge at Northstowe. The system provides:
    - Use for complex views needing real-time updates
    - Manages riders, tracking, routes, and computed statistics
    - Configurable cache durations per data type
+   - NOTE: Auto-refresh is currently DISABLED (set to Infinity) for safety
 
 ### Data Processing Pipeline
 
@@ -96,13 +61,15 @@ Modular processors in `src/utils/dataProcessors/`:
 - `IndianRiders` - Main container with tab navigation
 - `IndianRidersTimeline` - Control point progress cards (limited to 10 controls)
 - `IndianRidersMap` - Leaflet map (lazy-loaded on tab switch)
+- `IndianRidersProgress` - Recently added progress visualization
+- `IndianRidersProgressAlt` - Alternative progress view
 - `WavesSummary` - All waves overview with statistics
 - `WaveDetail` - Single wave deep dive
 
 **Shared Components:**
 - `AsyncBoundary` - Loading/error states wrapper
 - `ErrorBoundary` - Application-level error handling
-- `PageHeader` - Consistent page headers
+- UI components in `src/components/ui/` - Radix UI based components
 
 ### Performance Patterns
 
@@ -125,12 +92,12 @@ Modular processors in `src/utils/dataProcessors/`:
 
 3. **Timeline Optimization**: First 10 controls only to prevent DOM overload
 
-## Data Sources & Refresh Intervals
+## Data Sources & API Configuration
 
-All S3-hosted with CORS enabled:
-- **Riders**: 5-minute refresh - `riders.json`
-- **Tracking**: 30-second refresh (GlobalDataProvider) - `indian-riders-tracking.json`
-- **Routes**: Cached indefinitely - `routes.json`
+All S3-hosted with CORS enabled (see `src/config/api.ts`):
+- **Riders**: `riders.json` - 5-minute cache
+- **Tracking**: `indian-riders-tracking.json` - 30-second refresh in GlobalDataProvider
+- **Routes**: `routes.json` - Cached indefinitely
 
 S3 bucket: `lel-riders-data-2025.s3.ap-south-1.amazonaws.com`
 
@@ -139,7 +106,9 @@ S3 bucket: `lel-riders-data-2025.s3.ap-south-1.amazonaws.com`
 ### Time Handling
 - Display in UK time (`Europe/London`) with BST awareness
 - Use `formatElapsedTime()` for ride durations
-- Live clock component uses 1-second interval
+- Wave start times configured in `lel-route.ts`:
+  - Writtle waves: Start at 4:00 AM + 15-minute increments
+  - London waves: Start at 5:00 AM + 15-minute increments
 
 ### Search Implementation
 - Pre-computed `searchableText` field includes name and rider ID
@@ -156,35 +125,45 @@ S3 bucket: `lel-riders-data-2025.s3.ap-south-1.amazonaws.com`
 - No data: "No riders found" with appropriate context
 - Tracking unavailable: Graceful degradation to basic view
 
-## TypeScript Patterns
+## TypeScript Configuration
 
-### Type Imports
-```typescript
-import type { Rider, TrackingData } from '@/types';
-```
+- Strict mode enabled
+- Path alias: `@/*` → `./src/*` (configured in tsconfig.json and craco.config.js)
+- Type imports preferred: `import type { Rider } from '@/types'`
 
-### API Error Handling
+### Core Types (`src/types/`)
 ```typescript
-interface ApiError {
-  message: string;
-  status?: number;
-  data?: unknown;
-}
-```
-
-### Route Configuration Types
-```typescript
-interface RouteControl {
-  id: string;
+interface Rider {
+  rider_no: string;
   name: string;
-  distance: number;
-  cutoff: string;
+  country?: string;
+  wave?: string;
+}
+
+interface TrackingRider extends Rider {
+  status: 'not_started' | 'in_progress' | 'finished' | 'dnf';
+  checkpoints: CheckpointEntry[];
+  distance_km: number;
+  last_checkpoint: string | null;
 }
 ```
 
-## Deployment Notes
+## Testing Strategy
 
-- **Vercel**: Automatic deployments from main branch
-- **Environment**: No environment variables required (all data public)
-- **CORS**: Must be configured on S3 bucket for API access
-- **Build Output**: Static files, no server required
+- Jest with React Testing Library
+- Run specific tests: `npm test -- IndianRiders`
+- Coverage reports: `npm test -- --coverage`
+- Test files alongside components (*.test.tsx)
+
+## Build Configuration
+
+- Create React App with CRACO for custom webpack config
+- Tailwind CSS with custom configuration
+- CSS-in-JS utilities via `class-variance-authority` and `clsx`
+
+## Development Tips
+
+- Check git status before starting - uncommitted changes exist
+- The app uses React 19 (latest version)
+- UI components use Radix UI primitives with Tailwind styling
+- Build info available via `src/buildInfo.ts`

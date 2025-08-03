@@ -76,7 +76,9 @@ export const LONDON_START_CONTROLS: RouteControl[] = [
 
 /**
  * Wave start times for different rider groups
- * Writtle start waves: Base time 4:00 AM, then 15-minute increments
+ * Writtle start waves: 
+ *   - A-AG: Base time 4:00 AM, then 15-minute increments
+ *   - AI onwards: Base time 4:00 PM, then 15-minute increments
  * London start waves: Base time 5:00 AM, then 15-minute increments
  */
 export const WAVE_START_TIMES: { [key: string]: string } = {
@@ -114,6 +116,25 @@ export const WAVE_START_TIMES: { [key: string]: string } = {
   'AE': '11:30',
   'AF': '11:45',
   'AG': '12:00',
+  'AH': '12:15',
+  'AI': '16:00',  // 4:00 PM start
+  'AJ': '16:15',
+  'AK': '16:30',
+  'AL': '16:45',
+  'AM': '17:00',
+  'AN': '17:15',
+  'AO': '17:30',
+  'AP': '17:45',
+  'AQ': '18:00',
+  'AR': '18:15',
+  'AS': '18:30',
+  'AT': '18:45',
+  'AU': '19:00',
+  'AV': '19:15',
+  'AW': '19:30',
+  'AX': '19:45',
+  'AY': '20:00',
+  'AZ': '20:15',
   
   // London start waves (start at 5:00 AM)
   'LA': '05:00',
@@ -124,6 +145,15 @@ export const WAVE_START_TIMES: { [key: string]: string } = {
   'LF': '06:15',
   'LG': '06:30',
   'LH': '06:45',
+  'LI': '07:00',
+  'LJ': '07:15',
+  'LK': '07:30',
+  'LL': '07:45',
+  'LM': '08:00',
+  'LN': '08:15',
+  'LO': '08:30',
+  'LP': '08:45',
+  'LQ': '09:00',
 };
 
 /**
@@ -132,7 +162,7 @@ export const WAVE_START_TIMES: { [key: string]: string } = {
  * @returns true if the rider starts from London, false if from Writtle
  */
 export const isLondonStartRider = (riderNo: string): boolean => {
-  return /^L[A-H]/.test(riderNo);
+  return /^L[A-Q]/.test(riderNo);
 };
 
 /**

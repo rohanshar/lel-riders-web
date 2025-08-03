@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, Users, MapPin, Activity, Search, AlertCircle, CheckCircle, XCircle, Loader2, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { Clock, Users, MapPin, Activity, Search, AlertCircle, CheckCircle, XCircle, Loader2, ChevronDown, ChevronUp, RefreshCw, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -11,6 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import IndianRidersProgressAlt from './IndianRidersProgressAlt';
 import { 
   getTotalDistanceForRider,
   getWaveStartTime,
@@ -108,6 +110,74 @@ const IndianRiders: React.FC = () => {
     const interval = setInterval(updateLondonTime, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Calculate latest updates across all riders
+  const latestUpdates = useMemo(() => {
+    if (!trackingData?.riders) return [];
+
+    const updates: Array<{
+      riderName: string;
+      riderNo: string;
+      checkpoint: string;
+      time: string;
+      timestamp: Date;
+      minutesAgo: number;
+    }> = [];
+
+    // Collect all checkpoint arrivals with timestamps
+    trackingData.riders.forEach((rider: Rider) => {
+      rider.checkpoints.forEach((checkpoint: Checkpoint) => {
+        if (checkpoint.time) {
+          // Parse the checkpoint time
+          const now = new Date();
+          let checkpointDate: Date;
+          
+          if (checkpoint.time.includes('/')) {
+            // Format: "3/8 19:32"
+            const [date, time] = checkpoint.time.split(' ');
+            const [day, month] = date.split('/');
+            const [hours, minutes] = time.split(':');
+            const year = now.getFullYear();
+            checkpointDate = new Date(year, parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes));
+          } else {
+            // Format: "Sunday 08:46" - assume it's within the last week
+            const timeMatch = checkpoint.time.match(/(\d+):(\d+)/);
+            if (timeMatch) {
+              const [_, hours, minutes] = timeMatch;
+              checkpointDate = new Date();
+              checkpointDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+              
+              // If the time is in the future, assume it was yesterday
+              if (checkpointDate > now) {
+                checkpointDate.setDate(checkpointDate.getDate() - 1);
+              }
+            } else {
+              return; // Skip if we can't parse the time
+            }
+          }
+
+          const minutesAgo = Math.floor((now.getTime() - checkpointDate.getTime()) / (1000 * 60));
+          
+          // Only include updates from the last 24 hours
+          if (minutesAgo >= 0 && minutesAgo < 1440) {
+            updates.push({
+              riderName: rider.name,
+              riderNo: rider.rider_no,
+              checkpoint: checkpoint.name,
+              time: checkpoint.time,
+              timestamp: checkpointDate,
+              minutesAgo
+            });
+          }
+        }
+      });
+    });
+
+    // Sort by most recent first and take top 25
+    return updates
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 25);
+  }, [trackingData]);
 
   // Update time since last update only - NO AUTO REFRESH
   useEffect(() => {
@@ -330,22 +400,40 @@ const IndianRiders: React.FC = () => {
 
   if (!trackingData) return null;
 
+  // Check if data is stale (more than 10 minutes old)
+  const isDataStale = lastUpdateTime && (new Date().getTime() - lastUpdateTime.getTime()) > 600000;
+
   return (
-    <div className="space-y-6">
-      {/* Header Stats */}
-      <div className="border rounded-lg p-4">
-        <div 
-          className="flex items-center justify-between cursor-pointer"
-          onClick={() => setShowStats(!showStats)}
-        >
-          <h2 className="text-lg font-semibold">Statistics</h2>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {statistics.inProgress} riding • {statistics.finished} finished
-            </span>
-            {showStats ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-          </div>
+    <div className={`space-y-6 ${isDataStale ? 'bg-orange-50' : ''}`}>
+      {isDataStale && (
+        <div className="bg-orange-100 border border-orange-300 text-orange-800 px-4 py-3 rounded-lg flex items-center gap-2">
+          <AlertCircle className="h-5 w-5" />
+          <span className="font-medium">Data is stale</span>
+          <span className="text-sm">- Last updated {timeSinceUpdate}. Please refresh to get latest data.</span>
         </div>
+      )}
+      
+      <Tabs defaultValue="timeline" className="w-full">
+        <TabsList className="grid grid-cols-2 w-[400px]">
+          <TabsTrigger value="timeline">Timeline View</TabsTrigger>
+          <TabsTrigger value="progress">Progress Chart</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="timeline" className="space-y-6 mt-6">
+          {/* Header Stats */}
+          <div className="border rounded-lg p-4">
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => setShowStats(!showStats)}
+            >
+              <h2 className="text-lg font-semibold">Statistics</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {statistics.inProgress} riding • {statistics.finished} finished
+                </span>
+                {showStats ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </div>
+            </div>
         
         {showStats && (
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
@@ -700,6 +788,80 @@ const IndianRiders: React.FC = () => {
             })()}
           </div>
 
+          {/* Latest Updates Card */}
+          {latestUpdates.length > 0 && (
+            <Card className="overflow-hidden">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                    Latest Updates
+                  </CardTitle>
+                  <Badge variant="secondary" className="text-xs">
+                    Live
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {latestUpdates.map((update, index) => (
+                    <div 
+                      key={`${update.riderNo}-${update.checkpoint}-${index}`}
+                      className="flex items-center justify-between text-xs py-1.5 px-2 rounded hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 shrink-0">
+                          {update.minutesAgo < 60 
+                            ? `${update.minutesAgo}m ago`
+                            : `${Math.floor(update.minutesAgo / 60)}h ${update.minutesAgo % 60}m ago`
+                          }
+                        </Badge>
+                        <span className="font-medium truncate">
+                          {update.riderName}
+                        </span>
+                        <span className="text-muted-foreground">
+                          ({update.riderNo})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <MapPin className="h-3 w-3 text-muted-foreground" />
+                        <span className="font-medium">{update.checkpoint}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {latestUpdates.length === 25 && (
+                  <p className="text-xs text-muted-foreground text-center mt-2 pt-2 border-t">
+                    Showing most recent 25 updates from last 24 hours
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Report Missing Rider Card */}
+          <Card className="bg-orange-50 border-orange-200">
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-center sm:text-left">
+                  <h3 className="font-semibold text-orange-900">Missing a rider?</h3>
+                  <p className="text-sm text-orange-700 mt-1">
+                    Help us improve this tracker by reporting missing Indian riders or data issues
+                  </p>
+                </div>
+                <a 
+                  href="mailto:rohan@enduroco.in?subject=LEL%202025%20Indian%20Riders%20-%20Missing%20Data&body=Please%20provide%20the%20following%20details%3A%0A%0ARider%20Name%3A%20%0ARider%20Number%3A%20%0AIssue%20Description%3A%20"
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center gap-2 text-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Report Missing Rider
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+
       {/* Rider Detail Dialog */}
       <Dialog open={!!selectedRider} onOpenChange={(open: boolean) => !open && setSelectedRider(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -998,6 +1160,12 @@ const IndianRiders: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        <TabsContent value="progress" className="mt-6">
+          <IndianRidersProgressAlt />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

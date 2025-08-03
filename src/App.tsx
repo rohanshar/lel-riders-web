@@ -141,6 +141,27 @@ function AppContent() {
 
         <footer className="bg-gray-900 text-white mt-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Feedback Section */}
+            <div className="bg-gray-800 rounded-lg p-6 mb-8">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="text-center md:text-left">
+                  <h3 className="text-lg font-semibold mb-2">Help us improve this tracker</h3>
+                  <p className="text-gray-300 text-sm">
+                    Found a bug? Missing rider data? Have suggestions for new features?
+                  </p>
+                </div>
+                <a 
+                  href="mailto:rohan@enduroco.in?subject=LEL%202025%20Tracker%20Feedback"
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-md font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Send Feedback
+                </a>
+              </div>
+            </div>
+
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="mb-4 md:mb-0">
                 <div className="flex items-center gap-3">
