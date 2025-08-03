@@ -1,5 +1,11 @@
 import { EnhancedRider } from './riderProcessors';
-import { getCheckpointDistance, getTotalDistanceForRider, getWaveStartTime } from '../../config/lel-route';
+import { 
+  getCheckpointDistance, 
+  getTotalDistanceForRider, 
+  getWaveStartTime,
+  calculateElapsedTime as calculateCheckpointElapsedTime,
+  formatElapsedTime
+} from '../../config/lel-route';
 
 /**
  * Checkpoint record with timestamp
@@ -8,6 +14,8 @@ export interface CheckpointRecord {
   name: string;
   time: string;
   distance_km: number;
+  elapsed_minutes?: number;
+  elapsed_formatted?: string;
 }
 
 /**
@@ -229,11 +237,20 @@ export function processTrackingRider(
     rawRider.last_checkpoint
   );
   
-  // Enhance checkpoints with distances
-  const checkpointsWithDistance: CheckpointRecord[] = rawRider.checkpoints.map(cp => ({
-    ...cp,
-    distance_km: getCheckpointDistance(cp.name, rawRider.rider_no)
-  }));
+  // Enhance checkpoints with distances and elapsed times
+  const checkpointsWithDistance: CheckpointRecord[] = rawRider.checkpoints.map(cp => {
+    const distance_km = getCheckpointDistance(cp.name, rawRider.rider_no);
+    // For the first checkpoint (Start), elapsed time should be 0
+    const isFirstCheckpoint = rawRider.checkpoints.indexOf(cp) === 0;
+    const elapsed_minutes = isFirstCheckpoint ? 0 : calculateCheckpointElapsedTime(rawRider.rider_no, cp.time);
+    
+    return {
+      ...cp,
+      distance_km,
+      elapsed_minutes: elapsed_minutes !== null ? elapsed_minutes : undefined,
+      elapsed_formatted: elapsed_minutes !== null ? formatElapsedTime(elapsed_minutes) : undefined
+    };
+  });
   
   return {
     ...enhancedRider,

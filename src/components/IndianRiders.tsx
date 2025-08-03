@@ -18,7 +18,9 @@ import {
   getCheckpointDistance, 
   getTotalDistanceForRider,
   getWaveStartTime,
-  getControlsForRider
+  getControlsForRider,
+  calculateElapsedTime,
+  formatElapsedTime
 } from '../config/lel-route';
 import { useGlobalData } from '../contexts';
 
@@ -47,16 +49,6 @@ interface Control {
   leg: 'North' | 'South';
 }
 
-interface TrackingData {
-  event: {
-    name: string;
-    distance_km: number;
-    controls: Control[];
-  };
-  last_updated: string;
-  riders: Rider[];
-}
-
 interface IndianRidersProps {
   defaultView?: 'progress' | 'table' | 'timeline';
 }
@@ -66,6 +58,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
   const { 
     rawTrackingData,
     rawRouteData,
+    trackingRiders,
     loading: globalLoading,
     errors: globalError
   } = useGlobalData();
@@ -90,6 +83,14 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
     if (!rawTrackingData) return null;
     return rawTrackingData;
   }, [rawTrackingData]);
+  
+  // Get Indian riders from processed tracking data
+  const processedIndianRiders = useMemo(() => {
+    if (!trackingRiders) return [];
+    return trackingRiders.filter(rider => 
+      rawTrackingData?.riders?.some((r: any) => r.rider_no === rider.rider_no)
+    );
+  }, [trackingRiders, rawTrackingData]);
 
   const loading = globalLoading.tracking;
   const error = globalError.tracking?.message || null;
@@ -734,39 +735,85 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
                       {isExpanded && riderCount > 0 && (
                         <CardContent className="pt-0 pb-3">
                           <div className="space-y-1">
-                            {ridersAtControl.map((rider: Rider) => {
-                              const checkpoint = rider.checkpoints.find(cp => {
-                                if (isStart) {
-                                  return cp.name === 'Start' || 
-                                         cp.name === 'Writtle' || 
-                                         cp.name === 'London' ||
-                                         cp.name.includes('Start');
+                            {(() => {
+                              // Sort riders by elapsed time
+                              interface RiderWithElapsedTime {
+                                rider: Rider;
+                                checkpoint: Checkpoint | undefined;
+                                elapsedMinutes: number;
+                                elapsedFormatted: string;
+                              }
+                              
+                              const ridersWithElapsedTime = ridersAtControl.map((rider: Rider): RiderWithElapsedTime => {
+                                const checkpoint = rider.checkpoints.find(cp => {
+                                  if (isStart) {
+                                    return cp.name === 'Start' || 
+                                           cp.name === 'Writtle' || 
+                                           cp.name === 'London' ||
+                                           cp.name.includes('Start');
+                                  }
+                                  return cp.name === control.name || 
+                                         cp.name.includes(control.name);
+                                });
+                                
+                                // Calculate elapsed time directly
+                                let elapsedMinutes = 0;
+                                let elapsedFormatted = '';
+                                
+                                if (checkpoint) {
+                                  // For start checkpoint, elapsed time is 0
+                                  if (isStart) {
+                                    elapsedMinutes = 0;
+                                    elapsedFormatted = '0m';
+                                  } else {
+                                    // Calculate elapsed time from wave start
+                                    const elapsed = calculateElapsedTime(rider.rider_no, checkpoint.time);
+                                    if (elapsed !== null) {
+                                      elapsedMinutes = elapsed;
+                                      elapsedFormatted = formatElapsedTime(elapsed);
+                                    }
+                                  }
                                 }
-                                return cp.name === control.name || 
-                                       cp.name.includes(control.name);
-                              });
-                              if (!checkpoint) return null;
+                                
+                                return {
+                                  rider,
+                                  checkpoint,
+                                  elapsedMinutes,
+                                  elapsedFormatted
+                                };
+                              }).filter((item: RiderWithElapsedTime) => item.checkpoint);
+                              
+                              // Sort by elapsed time (fastest first)
+                              ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => a.elapsedMinutes - b.elapsedMinutes);
+                              
+                              return ridersWithElapsedTime.map(({ rider, checkpoint, elapsedFormatted }: RiderWithElapsedTime, index: number) => {
+                                if (!checkpoint) return null;
 
-                              return (
-                                <div 
-                                  key={rider.rider_no} 
-                                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer text-sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedRider(rider);
-                                  }}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    {getStatusIcon(rider.status)}
-                                    <span className="font-medium">{rider.name}</span>
-                                    <span className="text-xs text-muted-foreground">({rider.rider_no})</span>
+                                return (
+                                  <div 
+                                    key={rider.rider_no} 
+                                    className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer text-sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedRider(rider);
+                                    }}
+                                  >
+                                    <div className="flex items-center gap-2 flex-1">
+                                      <span className="text-xs font-medium text-muted-foreground w-8">#{index + 1}</span>
+                                      {getStatusIcon(rider.status)}
+                                      <span className="font-medium">{rider.name}</span>
+                                      <span className="text-xs text-muted-foreground">({rider.rider_no})</span>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-xs">
+                                      <span className="text-muted-foreground">{checkpoint.time}</span>
+                                      <Badge variant={index < 3 ? "default" : "secondary"} className="text-xs px-2 py-0 min-w-[60px] text-center">
+                                        {elapsedFormatted}
+                                      </Badge>
+                                    </div>
                                   </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    <span>{checkpoint.time}</span>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              });
+                            })()}
                           </div>
                         </CardContent>
                       )}
@@ -842,17 +889,30 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
                     <p className="text-muted-foreground">No checkpoints reached yet</p>
                   ) : (
                     <div className="space-y-3">
-                      {selectedRider.checkpoints.map((checkpoint: Checkpoint, index: number) => (
-                        <div key={index} className="border rounded-lg p-3">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-semibold">{checkpoint.name}</h4>
-                              <p className="text-sm text-muted-foreground">Checkpoint #{index + 1}</p>
+                      {selectedRider.checkpoints.map((checkpoint: Checkpoint, index: number) => {
+                        // Find the processed rider to get elapsed time
+                        const processedRider = processedIndianRiders.find(pr => pr.rider_no === selectedRider.rider_no);
+                        const processedCheckpoint = processedRider?.checkpoints?.find(cp => 
+                          cp.name === checkpoint.name || cp.name.includes(checkpoint.name)
+                        );
+                        
+                        return (
+                          <div key={index} className="border rounded-lg p-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-semibold">{checkpoint.name}</h4>
+                                <p className="text-sm text-muted-foreground">Checkpoint #{index + 1}</p>
+                              </div>
+                              <div className="text-right">
+                                <Badge variant="outline">{checkpoint.time}</Badge>
+                                {processedCheckpoint?.elapsed_formatted && (
+                                  <p className="text-xs text-primary mt-1">Total: {processedCheckpoint.elapsed_formatted}</p>
+                                )}
+                              </div>
                             </div>
-                            <Badge variant="outline">{checkpoint.time}</Badge>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
