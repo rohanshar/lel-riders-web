@@ -1,5 +1,5 @@
 // Import and re-export base Rider type
-import { Rider } from '../types';
+import type { Rider } from '../types';
 export type { Rider };
 
 // API Response types
@@ -75,4 +75,7 @@ export interface WaveSummary {
   countries: string[];
   startTime?: string;
 }
+
+// Re-export enhanced types
+export * from './enhanced';
 
