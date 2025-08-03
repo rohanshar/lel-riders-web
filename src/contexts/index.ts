@@ -6,3 +6,8 @@ export {
   useSearchData,
   useWaveSummary,
 } from './RiderDataContext';
+
+export {
+  GlobalDataProvider,
+  useGlobalData,
+} from './GlobalDataStore';
