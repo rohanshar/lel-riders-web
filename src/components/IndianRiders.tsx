@@ -223,6 +223,42 @@ const IndianRiders: React.FC = () => {
     return `${mins}m`;
   };
 
+  // Calculate time ago from a checkpoint time (e.g., "Sunday 11:56")
+  const calculateTimeAgo = (checkpointTime: string): string => {
+    try {
+      const timeParts = checkpointTime.split(' ');
+      const timeOnly = timeParts[timeParts.length - 1];
+      const [hours, minutes] = timeOnly.split(':').map(Number);
+      
+      // Get current time in UK timezone
+      const now = new Date();
+      const ukNow = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/London' }));
+      const currentHours = ukNow.getHours();
+      const currentMinutes = ukNow.getMinutes();
+      
+      // Calculate minutes since checkpoint (assuming same day for simplicity)
+      let minutesAgo = (currentHours * 60 + currentMinutes) - (hours * 60 + minutes);
+      
+      // Handle day boundary (if checkpoint was yesterday)
+      if (minutesAgo < 0) {
+        minutesAgo += 24 * 60; // Add 24 hours
+      }
+      
+      if (minutesAgo < 60) {
+        return `${minutesAgo}m ago`;
+      } else if (minutesAgo < 24 * 60) {
+        const hoursAgo = Math.floor(minutesAgo / 60);
+        const minsAgo = minutesAgo % 60;
+        return minsAgo > 0 ? `${hoursAgo}h ${minsAgo}m ago` : `${hoursAgo}h ago`;
+      } else {
+        const daysAgo = Math.floor(minutesAgo / (24 * 60));
+        return daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`;
+      }
+    } catch (error) {
+      return '';
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'in_progress':
@@ -638,7 +674,12 @@ const IndianRiders: React.FC = () => {
                                     <span className="text-xs text-muted-foreground">({rider.rider_no})</span>
                                   </div>
                                   <div className="flex items-center gap-4 text-xs">
-                                    <span className="text-muted-foreground">{checkpoint.time}</span>
+                                    <span className="text-muted-foreground">
+                                      {checkpoint.time}
+                                      {calculateTimeAgo(checkpoint.time) && (
+                                        <span className="text-xs ml-1">({calculateTimeAgo(checkpoint.time)})</span>
+                                      )}
+                                    </span>
                                     <Badge 
                                       variant={sortMode === 'rank' && index < 3 ? "default" : "secondary"} 
                                       className="text-xs px-2 py-0 min-w-[60px] text-center"
