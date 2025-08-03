@@ -135,9 +135,9 @@ function AppContent() {
               <Route path="/wave/:wave" element={<AsyncBoundary><WaveDetail /></AsyncBoundary>} />
               <Route path="/route" element={<AsyncBoundary><RouteMap /></AsyncBoundary>} />
               <Route path="/all-riders" element={<AsyncBoundary><RidersList /></AsyncBoundary>} />
-              <Route path="/indian-riders" element={<AsyncBoundary><IndianRidersProgress /></AsyncBoundary>} />
+              <Route path="/indian-riders" element={<AsyncBoundary><IndianRidersTimeline /></AsyncBoundary>} />
+              <Route path="/indian-riders/progress" element={<AsyncBoundary><IndianRidersProgress /></AsyncBoundary>} />
               <Route path="/indian-riders/table" element={<AsyncBoundary><IndianRidersTableView /></AsyncBoundary>} />
-              <Route path="/indian-riders/timeline" element={<AsyncBoundary><IndianRidersTimeline /></AsyncBoundary>} />
             </Routes>
           </div>
         </main>

@@ -61,7 +61,7 @@ interface IndianRidersProps {
   defaultView?: 'progress' | 'table' | 'timeline';
 }
 
-const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' }) => {
+const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' }) => {
   const location = useLocation();
   const { 
     rawTrackingData,
@@ -80,8 +80,9 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
   // Determine current view based on URL
   const selectedView = (() => {
     if (location.pathname === '/indian-riders/table') return 'table';
-    if (location.pathname === '/indian-riders/timeline') return 'timeline';
-    return 'progress';
+    if (location.pathname === '/indian-riders/progress') return 'progress';
+    if (location.pathname === '/indian-riders') return 'timeline';
+    return 'timeline';
   })();
 
   // Map GlobalData to component's expected format
@@ -491,6 +492,16 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
             <Link 
               to="/indian-riders" 
               className={`flex-1 text-center px-4 py-2 rounded-md font-medium transition-colors ${
+                selectedView === 'timeline' 
+                  ? 'bg-white text-primary shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Timeline View
+            </Link>
+            <Link 
+              to="/indian-riders/progress" 
+              className={`flex-1 text-center px-4 py-2 rounded-md font-medium transition-colors ${
                 selectedView === 'progress' 
                   ? 'bg-white text-primary shadow-sm' 
                   : 'text-gray-600 hover:text-gray-900'
@@ -507,16 +518,6 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
               }`}
             >
               Table View
-            </Link>
-            <Link 
-              to="/indian-riders/timeline" 
-              className={`flex-1 text-center px-4 py-2 rounded-md font-medium transition-colors ${
-                selectedView === 'timeline' 
-                  ? 'bg-white text-primary shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Timeline View
             </Link>
           </div>
 
