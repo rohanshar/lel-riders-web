@@ -675,6 +675,59 @@ const IndianRiders: React.FC = () => {
                       <MapPin className="h-4 w-4 text-gray-600" />
                       <span>Current Location: <strong>{selectedRider.current_checkpoint || selectedRider.last_checkpoint || 'Start'}</strong></span>
                     </div>
+                    {selectedRider.status === 'in_progress' && (() => {
+                      // Calculate expected arrival at next control
+                      const currentDistance = calculateRiderDistance(selectedRider);
+                      const controls = getControlsForRider(selectedRider.rider_no);
+                      
+                      // Find the next control
+                      let nextControl = null;
+                      for (const control of controls) {
+                        if (control.km > currentDistance) {
+                          nextControl = control;
+                          break;
+                        }
+                      }
+                      
+                      // Calculate average speed from actual data
+                      let averageSpeed = 0;
+                      if (currentDistance > 0 && selectedRider.checkpoints.length > 0) {
+                        const lastCheckpoint = selectedRider.checkpoints[selectedRider.checkpoints.length - 1];
+                        const elapsed = calculateElapsedTime(selectedRider.rider_no, lastCheckpoint.time);
+                        if (elapsed && elapsed > 0) {
+                          averageSpeed = (currentDistance / elapsed) * 60; // km/h
+                        }
+                      }
+                      
+                      if (nextControl && averageSpeed > 0) {
+                        const distanceToNext = nextControl.km - currentDistance;
+                        const hoursToNext = distanceToNext / averageSpeed;
+                        const expectedArrival = new Date(Date.now() + hoursToNext * 60 * 60 * 1000);
+                        const expectedTime = expectedArrival.toLocaleString('en-GB', {
+                          weekday: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false
+                        });
+                        
+                        return (
+                          <>
+                            <div className="flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-gray-600" />
+                              <span>Next Control: <strong>{nextControl.name}</strong> ({distanceToNext} km away)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-4 w-4 text-gray-600" />
+                              <span>Expected Arrival: <strong>{expectedTime}</strong> (in {Math.floor(hoursToNext)}h {Math.round((hoursToNext % 1) * 60)}m)</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span>Based on average speed: {averageSpeed.toFixed(1)} km/h</span>
+                            </div>
+                          </>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
 
@@ -684,18 +737,35 @@ const IndianRiders: React.FC = () => {
                     <p className="text-sm text-muted-foreground">Distance</p>
                     <p className="text-xl font-semibold">{calculateRiderDistance(selectedRider)} km</p>
                   </div>
-                  {selectedRider.status === 'in_progress' && selectedRider.average_speed && selectedRider.average_speed > 0 && (
-                    <>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Elapsed Time</p>
-                        <p className="text-xl font-semibold">{formatTime(selectedRider.elapsed_time || 0)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Avg Speed</p>
-                        <p className="text-xl font-semibold">{selectedRider.average_speed?.toFixed(1)} km/h</p>
-                      </div>
-                    </>
-                  )}
+                  <div>
+                    <p className="text-sm text-muted-foreground">Elapsed Time</p>
+                    <p className="text-xl font-semibold">
+                      {(() => {
+                        if (selectedRider.status === 'not_started') return '-';
+                        if (selectedRider.checkpoints.length === 0) return '-';
+                        const lastCheckpoint = selectedRider.checkpoints[selectedRider.checkpoints.length - 1];
+                        const elapsed = calculateElapsedTime(selectedRider.rider_no, lastCheckpoint.time);
+                        return elapsed !== null ? formatElapsedTime(elapsed) : '-';
+                      })()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Avg Speed</p>
+                    <p className="text-xl font-semibold">
+                      {(() => {
+                        if (selectedRider.status === 'not_started') return '-';
+                        const distance = calculateRiderDistance(selectedRider);
+                        if (distance === 0 || selectedRider.checkpoints.length === 0) return '-';
+                        const lastCheckpoint = selectedRider.checkpoints[selectedRider.checkpoints.length - 1];
+                        const elapsed = calculateElapsedTime(selectedRider.rider_no, lastCheckpoint.time);
+                        if (elapsed && elapsed > 0) {
+                          const speed = (distance / elapsed) * 60; // km/h
+                          return `${speed.toFixed(1)} km/h`;
+                        }
+                        return '-';
+                      })()}
+                    </p>
+                  </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Checkpoints</p>
                     <p className="text-xl font-semibold">{selectedRider.checkpoints.length}</p>
@@ -727,15 +797,51 @@ const IndianRiders: React.FC = () => {
                         const isStartCheckpoint = index === 0 || checkpoint.name === 'Start' || 
                                                 checkpoint.name === 'Writtle' || checkpoint.name === 'London';
                         const waveStartTime = getWaveStartTime(selectedRider.rider_no);
+                        const controls = getControlsForRider(selectedRider.rider_no);
                         
                         // Calculate elapsed time
                         let elapsedFormatted = '';
+                        let elapsedMinutes = 0;
                         if (isStartCheckpoint) {
                           elapsedFormatted = '0m';
+                          elapsedMinutes = 0;
                         } else {
                           const elapsed = calculateElapsedTime(selectedRider.rider_no, checkpoint.time);
                           if (elapsed !== null) {
                             elapsedFormatted = formatElapsedTime(elapsed);
+                            elapsedMinutes = elapsed;
+                          }
+                        }
+                        
+                        // Calculate control-to-control speed and time
+                        let legTime = '';
+                        let legSpeed = 0;
+                        let legDistance = 0;
+                        
+                        if (index > 0) {
+                          const prevCheckpoint = selectedRider.checkpoints[index - 1];
+                          const prevElapsed = calculateElapsedTime(selectedRider.rider_no, prevCheckpoint.time) || 0;
+                          const timeDiff = elapsedMinutes - prevElapsed;
+                          
+                          // Find distances for current and previous checkpoints
+                          const currentControl = controls.find(c => 
+                            c.name === checkpoint.name.replace(/\s+[NSEW]$/, '') ||
+                            checkpoint.name.includes(c.name)
+                          );
+                          const prevControl = controls.find(c => 
+                            c.name === prevCheckpoint.name.replace(/\s+[NSEW]$/, '') ||
+                            prevCheckpoint.name.includes(c.name) ||
+                            (prevCheckpoint.name === 'Start' && c.km === 0)
+                          );
+                          
+                          if (currentControl && prevControl) {
+                            legDistance = currentControl.km - prevControl.km;
+                            if (timeDiff > 0) {
+                              legSpeed = (legDistance / timeDiff) * 60; // km/h
+                              const hours = Math.floor(timeDiff / 60);
+                              const mins = Math.round(timeDiff % 60);
+                              legTime = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+                            }
                           }
                         }
                         
@@ -745,6 +851,12 @@ const IndianRiders: React.FC = () => {
                               <div>
                                 <h4 className="font-semibold">{checkpoint.name}</h4>
                                 <p className="text-sm text-muted-foreground">Checkpoint #{index + 1}</p>
+                                {legDistance > 0 && (
+                                  <div className="mt-2 text-xs space-y-1">
+                                    <p className="text-muted-foreground">Leg: {legDistance} km in {legTime}</p>
+                                    <p className="text-muted-foreground">Leg Speed: {legSpeed.toFixed(1)} km/h</p>
+                                  </div>
+                                )}
                               </div>
                               <div className="text-right">
                                 <Badge variant="outline">{checkpoint.time}</Badge>
