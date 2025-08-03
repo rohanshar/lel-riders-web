@@ -11,6 +11,7 @@ import { usePageTracking } from './hooks/useAnalytics';
 import { GlobalDataProvider } from './contexts';
 import ErrorBoundary from './components/ErrorBoundary';
 import AsyncBoundary from './components/AsyncBoundary';
+import { buildInfo } from './buildInfo';
 
 function NavBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -161,6 +162,14 @@ function AppContent() {
               <div className="text-center md:text-right">
                 <p className="text-sm text-gray-400">
                   © {new Date().getFullYear()} Enduroco.in. All rights reserved.
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Build: {buildInfo.commitId.substring(0, 8)} • {new Date(buildInfo.buildTime).toLocaleString('en-GB', { 
+                    day: '2-digit',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
                 </p>
               </div>
             </div>

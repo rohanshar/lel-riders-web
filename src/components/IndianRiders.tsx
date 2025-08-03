@@ -53,8 +53,14 @@ const IndianRiders: React.FC = () => {
     rawTrackingData,
     loading: globalLoading,
     errors: globalError,
-    refreshTracking
+    refreshTracking: originalRefreshTracking
   } = useGlobalData();
+  
+  // SAFETY: Wrap refreshTracking to prevent any automatic calls
+  const refreshTracking = React.useCallback(async () => {
+    console.log('[IndianRiders] Manual refresh triggered by user');
+    return originalRefreshTracking();
+  }, [originalRefreshTracking]);
 
   const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -105,6 +111,7 @@ const IndianRiders: React.FC = () => {
 
   // Update time since last update only - NO AUTO REFRESH
   useEffect(() => {
+    // SAFETY CHECK: Ensure no auto-refresh
     const updateTimers = () => {
       if (!lastUpdateTime) return;
 
@@ -114,7 +121,12 @@ const IndianRiders: React.FC = () => {
       const diffMinutes = Math.floor(diffSeconds / 60);
       const seconds = diffSeconds % 60;
 
-      // Format time since update
+      // SAFETY: Log if we're near the old auto-refresh time
+      if (diffSeconds >= 600 && diffSeconds <= 660) {
+        console.warn('[IndianRiders] Near 10-minute mark but auto-refresh is DISABLED');
+      }
+
+      // Format time since update - DISPLAY ONLY, NO ACTIONS
       if (diffMinutes === 0) {
         setTimeSinceUpdate(`${seconds}s ago`);
       } else if (diffMinutes === 1) {
@@ -126,12 +138,14 @@ const IndianRiders: React.FC = () => {
         const mins = diffMinutes % 60;
         setTimeSinceUpdate(`${hours}h ${mins}m ago`);
       }
+      
+      // SAFETY: Absolutely no refresh calls here
     };
 
     updateTimers();
     const interval = setInterval(updateTimers, 1000);
     return () => clearInterval(interval);
-  }, [lastUpdateTime]);
+  }, [lastUpdateTime]); // SAFETY: Removed refreshTracking from deps
 
   // Toggle card expansion
   const toggleCardExpansion = (cardId: string) => {
@@ -662,6 +676,14 @@ const IndianRiders: React.FC = () => {
                       // Calculate expected arrival at next control
                       const currentDistance = calculateRiderDistance(selectedRider);
                       const controls = getControlsForRider(selectedRider.rider_no);
+                      
+                      console.log('[Expected Arrival Debug]', {
+                        rider: selectedRider.name,
+                        status: selectedRider.status,
+                        currentDistance,
+                        checkpoints: selectedRider.checkpoints.length,
+                        controls: controls.length
+                      });
                       
                       // Find the next control
                       let nextControl = null;

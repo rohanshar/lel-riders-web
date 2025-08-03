@@ -28,11 +28,11 @@ import {
   RawTrackingRider
 } from '../utils/dataProcessors';
 
-// Default cache durations
+// Default cache durations - DISABLED AUTO-REFRESH
 const CACHE_DURATIONS = {
-  riders: 5 * 60 * 1000, // 5 minutes
-  tracking: 30 * 1000,   // 30 seconds
-  routes: Infinity       // Never expires
+  riders: Infinity,    // SAFETY: No auto-refresh
+  tracking: Infinity,  // SAFETY: No auto-refresh
+  routes: Infinity     // Never expires
 };
 
 // Context
@@ -391,8 +391,14 @@ export const GlobalDataProvider: React.FC<GlobalDataProviderProps> = ({
 
   // Initial fetch only - no auto-refresh
   useEffect(() => {
+    console.log('[GlobalDataProvider] Mounting - Initial fetch only, NO auto-refresh');
+    console.log('[GlobalDataProvider] Cache durations:', cacheDurations);
+    
     // Initial fetch
     fetchAllData();
+    
+    // SAFETY: Absolutely no intervals or timeouts here
+    console.log('[GlobalDataProvider] No intervals set up - manual refresh only');
     
     return () => {
       // Abort any ongoing requests on unmount
