@@ -890,11 +890,20 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
                   ) : (
                     <div className="space-y-3">
                       {selectedRider.checkpoints.map((checkpoint: Checkpoint, index: number) => {
-                        // Find the processed rider to get elapsed time
-                        const processedRider = processedIndianRiders.find(pr => pr.rider_no === selectedRider.rider_no);
-                        const processedCheckpoint = processedRider?.checkpoints?.find(cp => 
-                          cp.name === checkpoint.name || cp.name.includes(checkpoint.name)
-                        );
+                        const isStartCheckpoint = index === 0 || checkpoint.name === 'Start' || 
+                                                checkpoint.name === 'Writtle' || checkpoint.name === 'London';
+                        const waveStartTime = getWaveStartTime(selectedRider.rider_no);
+                        
+                        // Calculate elapsed time
+                        let elapsedFormatted = '';
+                        if (isStartCheckpoint) {
+                          elapsedFormatted = '0m';
+                        } else {
+                          const elapsed = calculateElapsedTime(selectedRider.rider_no, checkpoint.time);
+                          if (elapsed !== null) {
+                            elapsedFormatted = formatElapsedTime(elapsed);
+                          }
+                        }
                         
                         return (
                           <div key={index} className="border rounded-lg p-3">
@@ -905,8 +914,13 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
                               </div>
                               <div className="text-right">
                                 <Badge variant="outline">{checkpoint.time}</Badge>
-                                {processedCheckpoint?.elapsed_formatted && (
-                                  <p className="text-xs text-primary mt-1">Total: {processedCheckpoint.elapsed_formatted}</p>
+                                {isStartCheckpoint && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Wave start: {waveStartTime}
+                                  </p>
+                                )}
+                                {elapsedFormatted && (
+                                  <p className="text-xs text-primary mt-1">Total: {elapsedFormatted}</p>
                                 )}
                               </div>
                             </div>
