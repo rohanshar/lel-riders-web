@@ -704,16 +704,57 @@ const IndianRiders: React.FC = () => {
                         }
                       }
                       
-                      if (nextControl && averageSpeed > 0) {
+                      if (nextControl && averageSpeed > 0 && selectedRider.checkpoints.length > 0) {
                         const distanceToNext = nextControl.km - currentDistance;
                         const hoursToNext = distanceToNext / averageSpeed;
-                        const expectedArrival = new Date(Date.now() + hoursToNext * 60 * 60 * 1000);
-                        const expectedTime = expectedArrival.toLocaleString('en-GB', {
-                          weekday: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: false
-                        });
+                        
+                        // Get the last checkpoint arrival time
+                        const lastCheckpoint = selectedRider.checkpoints[selectedRider.checkpoints.length - 1];
+                        const lastCheckpointTime = lastCheckpoint.time; // Format: "Sunday 11:56"
+                        
+                        // Parse the checkpoint time (assuming format like "Sunday 11:56")
+                        const timeParts = lastCheckpointTime.split(' ');
+                        const dayName = timeParts[0];
+                        const timeOnly = timeParts[timeParts.length - 1]; // Get "11:56"
+                        const [checkpointHours, checkpointMinutes] = timeOnly.split(':').map(Number);
+                        
+                        // Calculate expected arrival by adding travel time to checkpoint time
+                        const totalMinutesAtCheckpoint = checkpointHours * 60 + checkpointMinutes;
+                        const travelMinutes = Math.round(hoursToNext * 60);
+                        const totalMinutesExpected = totalMinutesAtCheckpoint + travelMinutes;
+                        
+                        // Handle day overflow
+                        let expectedDay = dayName;
+                        let expectedHours = Math.floor(totalMinutesExpected / 60);
+                        let expectedMinutes = totalMinutesExpected % 60;
+                        
+                        if (expectedHours >= 24) {
+                          expectedHours = expectedHours % 24;
+                          // Simple day progression (would need proper date handling for production)
+                          const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                          const currentDayIndex = days.indexOf(dayName);
+                          expectedDay = days[(currentDayIndex + 1) % 7];
+                        }
+                        
+                        // Format the expected time
+                        const expectedTime = `${expectedDay} ${expectedHours.toString().padStart(2, '0')}:${expectedMinutes.toString().padStart(2, '0')}`;
+                        
+                        // Calculate IST time (UK + 4:30 hours during BST, + 5:30 during GMT)
+                        // Since this is summer (London-Edinburgh-London typically runs in July/August), UK is in BST (UTC+1)
+                        // IST is UTC+5:30, so IST = BST + 4:30
+                        const totalMinutesIST = totalMinutesExpected + (4 * 60 + 30); // Add 4:30 hours
+                        let expectedDayIST = expectedDay;
+                        let expectedHoursIST = Math.floor(totalMinutesIST / 60);
+                        let expectedMinutesIST = totalMinutesIST % 60;
+                        
+                        if (expectedHoursIST >= 24) {
+                          expectedHoursIST = expectedHoursIST % 24;
+                          const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                          const currentDayIndex = days.indexOf(expectedDay);
+                          expectedDayIST = days[(currentDayIndex + 1) % 7];
+                        }
+                        
+                        const expectedTimeIST = `${expectedHoursIST.toString().padStart(2, '0')}:${expectedMinutesIST.toString().padStart(2, '0')} IST`;
                         
                         return (
                           <>
@@ -723,7 +764,7 @@ const IndianRiders: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-2">
                               <Clock className="h-4 w-4 text-gray-600" />
-                              <span>Expected Arrival: <strong>{expectedTime}</strong> (in {Math.floor(hoursToNext)}h {Math.round((hoursToNext % 1) * 60)}m)</span>
+                              <span>Expected Arrival: <strong>{expectedTime}</strong> ({expectedTimeIST}) • {Math.floor(hoursToNext)}h {Math.round((hoursToNext % 1) * 60)}m from last control</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <span>Based on average speed: {averageSpeed.toFixed(1)} km/h</span>
@@ -829,15 +870,32 @@ const IndianRiders: React.FC = () => {
                           const timeDiff = elapsedMinutes - prevElapsed;
                           
                           // Find distances for current and previous checkpoints
+                          const cleanCheckpointName = checkpoint.name.replace(/\s+[NSEW]$/, '');
+                          const cleanPrevCheckpointName = prevCheckpoint.name.replace(/\s+[NSEW]$/, '');
+                          
                           const currentControl = controls.find(c => 
-                            c.name === checkpoint.name.replace(/\s+[NSEW]$/, '') ||
-                            checkpoint.name.includes(c.name)
+                            c.name === cleanCheckpointName ||
+                            c.name === checkpoint.name ||
+                            checkpoint.name.includes(c.name) ||
+                            c.name.includes(cleanCheckpointName)
                           );
                           const prevControl = controls.find(c => 
-                            c.name === prevCheckpoint.name.replace(/\s+[NSEW]$/, '') ||
+                            c.name === cleanPrevCheckpointName ||
+                            c.name === prevCheckpoint.name ||
                             prevCheckpoint.name.includes(c.name) ||
-                            (prevCheckpoint.name === 'Start' && c.km === 0)
+                            c.name.includes(cleanPrevCheckpointName) ||
+                            (prevCheckpoint.name === 'Start' && c.km === 0) ||
+                            (cleanPrevCheckpointName === 'Northstowe' && c.name === 'Northstowe')
                           );
+                          
+                          console.log('[Leg Debug]', {
+                            checkpoint: checkpoint.name,
+                            cleanName: cleanCheckpointName,
+                            currentControl: currentControl?.name,
+                            prevCheckpoint: prevCheckpoint.name,
+                            cleanPrevName: cleanPrevCheckpointName,
+                            prevControl: prevControl?.name
+                          });
                           
                           if (currentControl && prevControl) {
                             legDistance = currentControl.km - prevControl.km;
