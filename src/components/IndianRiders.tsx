@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, Users, MapPin, Activity, Search, AlertCircle, CheckCircle, XCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, Users, MapPin, Activity, Search, AlertCircle, CheckCircle, XCircle, Loader2, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -64,7 +64,7 @@ const IndianRiders: React.FC = () => {
   const [showStats, setShowStats] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const [timeSinceUpdate, setTimeSinceUpdate] = useState<string>('');
-  const [timeUntilUpdate, setTimeUntilUpdate] = useState<string>('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Map GlobalData to component's expected format
   const trackingData = useMemo(() => {
@@ -103,7 +103,7 @@ const IndianRiders: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Update time since last update and time until next update
+  // Update time since last update only - NO AUTO REFRESH
   useEffect(() => {
     const updateTimers = () => {
       if (!lastUpdateTime) return;
@@ -119,40 +119,19 @@ const IndianRiders: React.FC = () => {
         setTimeSinceUpdate(`${seconds}s ago`);
       } else if (diffMinutes === 1) {
         setTimeSinceUpdate(`1 min ${seconds}s ago`);
-      } else {
+      } else if (diffMinutes < 60) {
         setTimeSinceUpdate(`${diffMinutes} mins ${seconds}s ago`);
-      }
-
-      // Trigger refresh at 10 minutes 30 seconds (630 seconds)
-      if (diffSeconds >= 630) {
-        refreshTracking();
-        setTimeUntilUpdate('refreshing...');
-        // Reset the last update time to current to prevent multiple refreshes
-        setLastUpdateTime(new Date());
-        return;
-      }
-
-      // Calculate time until next update (10 minutes = 600 seconds)
-      const nextUpdateSeconds = 600 - diffSeconds;
-      if (nextUpdateSeconds > 0) {
-        const nextMinutes = Math.floor(nextUpdateSeconds / 60);
-        const nextSeconds = nextUpdateSeconds % 60;
-        if (nextMinutes === 0) {
-          setTimeUntilUpdate(`in ${nextSeconds}s`);
-        } else if (nextMinutes === 1) {
-          setTimeUntilUpdate(`in 1 min ${nextSeconds}s`);
-        } else {
-          setTimeUntilUpdate(`in ${nextMinutes} mins ${nextSeconds}s`);
-        }
       } else {
-        setTimeUntilUpdate('any moment...');
+        const hours = Math.floor(diffMinutes / 60);
+        const mins = diffMinutes % 60;
+        setTimeSinceUpdate(`${hours}h ${mins}m ago`);
       }
     };
 
     updateTimers();
     const interval = setInterval(updateTimers, 1000);
     return () => clearInterval(interval);
-  }, [lastUpdateTime, refreshTracking]);
+  }, [lastUpdateTime]);
 
   // Toggle card expansion
   const toggleCardExpansion = (cardId: string) => {
@@ -385,24 +364,28 @@ const IndianRiders: React.FC = () => {
       </div>
 
       {/* Last Updated */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
-        <div className="flex items-center text-muted-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex items-center text-muted-foreground text-sm">
           <Clock className="h-4 w-4 mr-2" />
           Updated <span className="font-medium text-foreground ml-1">{timeSinceUpdate}</span>
         </div>
-        <div className="flex items-center text-muted-foreground">
-          <Activity className="h-4 w-4 mr-2" />
-          Next update <span className="font-medium text-foreground ml-1">
-            {timeUntilUpdate === 'refreshing...' ? (
-              <span className="inline-flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                refreshing...
-              </span>
-            ) : (
-              timeUntilUpdate
-            )}
-          </span>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={async () => {
+            setIsRefreshing(true);
+            try {
+              await refreshTracking();
+            } finally {
+              setIsRefreshing(false);
+            }
+          }}
+          disabled={isRefreshing}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? 'Refreshing...' : 'Refresh'}
+        </Button>
       </div>
 
       {/* Search */}
