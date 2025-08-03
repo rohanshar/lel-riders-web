@@ -20,6 +20,7 @@ import {
   getWaveStartTime,
   getControlsForRider
 } from '../config/lel-route';
+import { useGlobalData } from '../contexts';
 
 interface Checkpoint {
   name: string;
@@ -62,14 +63,17 @@ interface IndianRidersProps {
 
 const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' }) => {
   const location = useLocation();
-  const [trackingData, setTrackingData] = useState<TrackingData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { 
+    rawTrackingData,
+    rawRouteData,
+    loading: globalLoading,
+    errors: globalError
+  } = useGlobalData();
+
   const [selectedRider, setSelectedRider] = useState<Rider | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('distance');
   const [showMap, setShowMap] = useState(false);
-  const [routeData, setRouteData] = useState<any>(null);
   const [londonTime, setLondonTime] = useState<string>('');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
@@ -80,35 +84,15 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
     return 'progress';
   })();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch('https://lel-riders-data-2025.s3.ap-south-1.amazonaws.com/indian-riders-tracking.json');
-        if (!response.ok) throw new Error('Failed to fetch tracking data');
-        const data = await response.json();
-        setTrackingData(data);
-        setLoading(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        setLoading(false);
-      }
-    };
+  // Map GlobalData to component's expected format
+  const trackingData = useMemo(() => {
+    if (!rawTrackingData) return null;
+    return rawTrackingData;
+  }, [rawTrackingData]);
 
-    fetchData();
-    // Refresh data every 2 minutes for more frequent updates
-    const interval = setInterval(fetchData, 2 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Fetch route data for map
-  useEffect(() => {
-    if (showMap) {
-      fetch('https://lel-riders-data-2025.s3.ap-south-1.amazonaws.com/routes.json')
-        .then(res => res.json())
-        .then(setRouteData)
-        .catch(console.error);
-    }
-  }, [showMap]);
+  const loading = globalLoading.tracking;
+  const error = globalError.tracking?.message || null;
+  const routeData = rawRouteData;
 
   // Update London time every second
   useEffect(() => {
@@ -134,7 +118,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
   const processedRiders = useMemo(() => {
     if (!trackingData) return [];
 
-    return trackingData.riders.map(rider => {
+    return trackingData.riders.map((rider: Rider) => {
       // Calculate current checkpoint
       const currentCheckpoint = rider.last_checkpoint || 'Not Started';
 
@@ -273,7 +257,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
 
     // Apply search filter
     if (searchTerm) {
-      riders = riders.filter(rider =>
+      riders = riders.filter((rider: Rider) =>
         rider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         rider.rider_no.toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -282,14 +266,14 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
     // Sort riders
     switch (sortBy) {
       case 'distance':
-        return riders.sort((a, b) => b.distance_km - a.distance_km);
+        return riders.sort((a: Rider, b: Rider) => b.distance_km - a.distance_km);
       case 'name':
-        return riders.sort((a, b) => a.name.localeCompare(b.name));
+        return riders.sort((a: Rider, b: Rider) => a.name.localeCompare(b.name));
       case 'rider_no':
-        return riders.sort((a, b) => a.rider_no.localeCompare(b.rider_no));
+        return riders.sort((a: Rider, b: Rider) => a.rider_no.localeCompare(b.rider_no));
       case 'status':
         const statusOrder = { in_progress: 0, finished: 1, not_started: 2, dnf: 3 };
-        return riders.sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+        return riders.sort((a: Rider, b: Rider) => statusOrder[a.status] - statusOrder[b.status]);
       default:
         return riders;
     }
@@ -299,10 +283,10 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
     if (!trackingData) return null;
 
     const total = trackingData.riders.length;
-    const inProgress = trackingData.riders.filter(r => r.status === 'in_progress').length;
-    const finished = trackingData.riders.filter(r => r.status === 'finished').length;
-    const dnf = trackingData.riders.filter(r => r.status === 'dnf').length;
-    const notStarted = trackingData.riders.filter(r => r.status === 'not_started').length;
+    const inProgress = trackingData.riders.filter((r: Rider) => r.status === 'in_progress').length;
+    const finished = trackingData.riders.filter((r: Rider) => r.status === 'finished').length;
+    const dnf = trackingData.riders.filter((r: Rider) => r.status === 'dnf').length;
+    const notStarted = trackingData.riders.filter((r: Rider) => r.status === 'not_started').length;
 
     return { total, inProgress, finished, dnf, notStarted };
   }, [trackingData]);
@@ -539,7 +523,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
           {/* Content based on selected view */}
           {selectedView === 'progress' && (
             <div className="space-y-4">
-          {filteredRiders.map((rider, index) => (
+          {filteredRiders.map((rider: Rider, index: number) => (
             <Card 
               key={rider.rider_no} 
               className="cursor-pointer hover:shadow-md transition-shadow border-gray-200"
@@ -594,7 +578,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
                             {/* Show estimated progress for all riders */}
                             {(() => {
                               const showEstimated = rider.estimated_distance !== undefined && rider.estimated_distance > 0;
-                              const estimatedWidth = showEstimated ? Math.min((rider.estimated_distance / totalDistance) * 100, 100) : 0;
+                              const estimatedWidth = showEstimated && rider.estimated_distance ? Math.min((rider.estimated_distance / totalDistance) * 100, 100) : 0;
                               const actualWidth = rider.distance_km > 0 ? Math.min((rider.distance_km / totalDistance) * 100, 100) : 0;
                               
                               return (
@@ -618,7 +602,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
                           
                           {/* Control point markers */}
                           <div className="absolute top-0 w-full h-2">
-                            {controlDistances.slice(0, 6).map((control) => (
+                            {controlDistances.slice(0, 6).map((control: any) => (
                               <div
                                 key={`${control.name}-${control.km}`}
                                 className="absolute top-0"
@@ -632,7 +616,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
                         
                         {/* Control labels with distances */}
                         <div className="flex justify-between mt-1">
-                          {controlDistances.slice(0, 5).map((control, index) => {
+                          {controlDistances.slice(0, 5).map((control: any, index: number) => {
                             const isReached = rider.distance_km >= control.km;
                             const prevControl = index > 0 ? controlDistances[index - 1] : null;
                             const distance = prevControl ? control.km - prevControl.km : control.km;
@@ -660,7 +644,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
                     <div className="flex items-center gap-2">
                       <Activity className="h-4 w-4" />
                       <span>
-                        Average Speed: {rider.average_speed > 0 ? `${rider.average_speed.toFixed(1)} km/h` : '0.0 km/h'}
+                        Average Speed: {rider.average_speed && rider.average_speed > 0 ? `${rider.average_speed.toFixed(1)} km/h` : '0.0 km/h'}
                       </span>
                     </div>
                     {rider.estimated_distance && rider.estimated_distance > rider.distance_km && (
@@ -688,7 +672,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
             <div className="space-y-3">
               {(() => {
                 // Create merged controls list, treating Writtle and London as "Start"
-                const mergedControls = trackingData.event.controls.reduce((acc, control) => {
+                const mergedControls = trackingData.event.controls.reduce((acc: any[], control: any) => {
                   // Skip London control, merge it with Writtle as "Start"
                   if (control.name === 'London') return acc;
                   
@@ -700,13 +684,13 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
                   return [...acc, control];
                 }, [] as Control[]);
 
-                return mergedControls.slice(0, 10).map((control) => {
+                return mergedControls.slice(0, 10).map((control: any) => {
                   const isStart = control.name === 'Start';
                   const cardId = control.id || control.name;
                   const isExpanded = expandedCards.has(cardId);
                   
                   // For Start, include riders who have "Start", "Writtle", or "London" in their checkpoints
-                  const ridersAtControl = filteredRiders.filter(rider => {
+                  const ridersAtControl = filteredRiders.filter((rider: Rider) => {
                     if (isStart) {
                       return rider.checkpoints.some(cp => 
                         cp.name === 'Start' || 
@@ -749,7 +733,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
                       {isExpanded && riderCount > 0 && (
                         <CardContent className="pt-0 pb-3">
                           <div className="space-y-1">
-                            {ridersAtControl.map(rider => {
+                            {ridersAtControl.map((rider: Rider) => {
                               const checkpoint = rider.checkpoints.find(cp => {
                                 if (isStart) {
                                   return cp.name === 'Start' || 
@@ -857,7 +841,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'progress' })
                     <p className="text-muted-foreground">No checkpoints reached yet</p>
                   ) : (
                     <div className="space-y-3">
-                      {selectedRider.checkpoints.map((checkpoint, index) => (
+                      {selectedRider.checkpoints.map((checkpoint: Checkpoint, index: number) => (
                         <div key={index} className="border rounded-lg p-3">
                           <div className="flex justify-between items-start">
                             <div>

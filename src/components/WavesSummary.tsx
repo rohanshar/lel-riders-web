@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useWaveSummary } from '../contexts';
+import { useGlobalData } from '../contexts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -9,7 +9,12 @@ import { Users, Search, TrendingUp, Activity, ChevronLeft } from 'lucide-react';
 
 const WavesSummary: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const { waves, loading, error } = useWaveSummary();
+  const { 
+    waves,
+    loading, 
+    errors,
+    globalStatistics
+  } = useGlobalData();
 
   // Filter waves by search term
   const filteredWaves = searchTerm
@@ -18,26 +23,26 @@ const WavesSummary: React.FC = () => {
       )
     : waves;
 
-  // Calculate statistics
-  const totalRiders = waves.reduce((sum, wave) => sum + wave.riderCount, 0);
-  const averageRidersPerWave = totalRiders / waves.length || 0;
+  // Calculate statistics from global data
+  const totalRiders = globalStatistics.totalRiders;
+  const averageRidersPerWave = waves.length > 0 ? totalRiders / waves.length : 0;
   const largestWave = waves.reduce((max, wave) => 
-    wave.riderCount > max.riderCount ? wave : max, 
-    { code: '', riderCount: 0, countries: [] }
+    wave.riders.length > (max?.riders?.length || 0) ? wave : max, 
+    waves[0]
   );
 
-  if (loading) return (
+  if (loading.riders) return (
     <div className="flex justify-center items-center min-h-[400px]">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
     </div>
   );
 
-  if (error) return (
+  if (errors.riders) return (
     <div className="flex justify-center items-center min-h-[400px]">
       <Card className="border-destructive">
         <CardHeader>
           <CardTitle className="text-destructive">Error loading riders</CardTitle>
-          <CardDescription>{error.message}</CardDescription>
+          <CardDescription>{errors.riders.message}</CardDescription>
         </CardHeader>
       </Card>
     </div>
@@ -92,9 +97,9 @@ const WavesSummary: React.FC = () => {
             <Users className="h-4 w-4 text-primary opacity-50" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Wave {largestWave.code}</div>
+            <div className="text-2xl font-bold">Wave {largestWave?.code || 'N/A'}</div>
             <p className="text-xs text-muted-foreground">
-              {largestWave.riderCount} riders
+              {largestWave?.riders?.length || 0} riders
             </p>
           </CardContent>
         </Card>
@@ -120,18 +125,18 @@ const WavesSummary: React.FC = () => {
 
       {/* Waves Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {filteredWaves.map(({ code, riderCount }) => (
-          <Link key={code} to={`/wave/${code}`}>
+        {filteredWaves.map((wave) => (
+          <Link key={wave.code} to={`/wave/${wave.code}`}>
             <Card className="hover:shadow-lg transition-all hover:scale-105 cursor-pointer h-full hover:border-primary">
               <CardHeader className="text-center pb-4">
                 <div className="mx-auto mb-2 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-primary">{code}</span>
+                  <span className="text-2xl font-bold text-primary">{wave.code}</span>
                 </div>
-                <CardTitle className="text-lg">Wave {code}</CardTitle>
+                <CardTitle className="text-lg">Wave {wave.code}</CardTitle>
               </CardHeader>
               <CardContent className="text-center">
                 <Badge variant="secondary" className="text-lg px-3 py-1">
-                  {riderCount} riders
+                  {wave.riders.length} riders
                 </Badge>
               </CardContent>
             </Card>

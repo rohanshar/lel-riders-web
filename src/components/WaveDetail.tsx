@@ -1,12 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useWaveData } from '../contexts';
+import { useGlobalData } from '../contexts';
 import { trackWaveView } from '../hooks/useAnalytics';
 
 const WaveDetail: React.FC = () => {
   const { wave } = useParams<{ wave: string }>();
   const [searchTerm, setSearchTerm] = useState('');
-  const { riders, loading, error } = useWaveData(wave || '');
+  const { 
+    loading,
+    errors,
+    getWaveByCode
+  } = useGlobalData();
+
+  const waveData = getWaveByCode(wave || '');
+  const riders = waveData?.riders || [];
 
   useEffect(() => {
     // Track wave view
@@ -36,17 +43,17 @@ const WaveDetail: React.FC = () => {
     });
   }, [riders, searchTerm]);
 
-  if (loading) return (
+  if (loading.riders) return (
     <div className="flex justify-center items-center min-h-screen">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
     </div>
   );
 
-  if (error) return (
+  if (errors.riders) return (
     <div className="flex justify-center items-center min-h-screen">
       <div className="text-red-600 text-center">
         <p className="text-xl font-semibold">Error loading riders</p>
-        <p className="mt-2">{error.message}</p>
+        <p className="mt-2">{errors.riders.message}</p>
       </div>
     </div>
   );

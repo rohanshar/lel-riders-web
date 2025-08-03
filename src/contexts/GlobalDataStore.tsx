@@ -9,7 +9,6 @@ import {
   UpdateTimestamps,
   RiderFilters,
   RiderSortBy,
-  ControlProgress,
   WaveStatisticsExtended,
   RouteData
 } from '../types/enhanced';
@@ -25,10 +24,7 @@ import {
   sortRidersByName,
   trackingSorters,
   filterRidersBySearch,
-  EnhancedRider,
   TrackingRider,
-  ProcessedWave,
-  TrackedWave,
   RawTrackingRider
 } from '../utils/dataProcessors';
 
@@ -60,6 +56,13 @@ export const GlobalDataProvider: React.FC<GlobalDataProviderProps> = ({
     ...CACHE_DURATIONS,
     ...cacheConfig
   }), [cacheConfig]);
+  
+  // Abort controllers for fetch operations
+  const abortControllersRef = React.useRef<{
+    riders?: AbortController;
+    tracking?: AbortController;
+    routes?: AbortController;
+  }>({});
 
   // Raw data
   const [rawRiders, setRawRiders] = useState<Rider[]>([]);
@@ -68,9 +71,9 @@ export const GlobalDataProvider: React.FC<GlobalDataProviderProps> = ({
 
   // Loading and error states
   const [loading, setLoading] = useState<LoadingState>({
-    riders: false,
-    tracking: false,
-    routes: false
+    riders: true,
+    tracking: true,
+    routes: true
   });
   const [errors, setErrors] = useState<ErrorState>({
     riders: null,
@@ -281,48 +284,100 @@ export const GlobalDataProvider: React.FC<GlobalDataProviderProps> = ({
 
   // Data fetching functions
   const fetchRiders = useCallback(async () => {
+    // Cancel any existing request
+    if (abortControllersRef.current.riders) {
+      abortControllersRef.current.riders.abort();
+    }
+    
+    // Create new abort controller
+    const controller = new AbortController();
+    abortControllersRef.current.riders = controller;
+    
     setLoading(prev => ({ ...prev, riders: true }));
     setErrors(prev => ({ ...prev, riders: null }));
     
     try {
-      const data = await riderService.fetchRiders();
-      setRawRiders(data);
-      setLastUpdated(prev => ({ ...prev, riders: new Date() }));
-    } catch (error) {
-      setErrors(prev => ({ ...prev, riders: error as Error }));
+      const data = await riderService.fetchRiders(controller.signal);
+      
+      // Only update state if request wasn't aborted
+      if (!controller.signal.aborted) {
+        setRawRiders(data);
+        setLastUpdated(prev => ({ ...prev, riders: new Date() }));
+      }
+    } catch (error: any) {
+      // Only set error if it's not an abort error
+      if (!controller.signal.aborted && error?.code !== 'REQUEST_ABORTED') {
+        setErrors(prev => ({ ...prev, riders: error as Error }));
+      }
     } finally {
-      setLoading(prev => ({ ...prev, riders: false }));
+      if (!controller.signal.aborted) {
+        setLoading(prev => ({ ...prev, riders: false }));
+      }
     }
   }, []);
 
   const fetchTracking = useCallback(async () => {
+    // Cancel any existing request
+    if (abortControllersRef.current.tracking) {
+      abortControllersRef.current.tracking.abort();
+    }
+    
+    // Create new abort controller
+    const controller = new AbortController();
+    abortControllersRef.current.tracking = controller;
+    
     setLoading(prev => ({ ...prev, tracking: true }));
     setErrors(prev => ({ ...prev, tracking: null }));
     
     try {
-      const response = await fetch('https://lel-riders-data-2025.s3.ap-south-1.amazonaws.com/indian-riders-tracking.json');
+      const response = await fetch('https://lel-riders-data-2025.s3.ap-south-1.amazonaws.com/indian-riders-tracking.json', {
+        signal: controller.signal
+      });
       const data = await response.json();
-      setRawTrackingData(data);
-      setLastUpdated(prev => ({ ...prev, tracking: new Date() }));
-    } catch (error) {
-      setErrors(prev => ({ ...prev, tracking: error as Error }));
+      
+      if (!controller.signal.aborted) {
+        setRawTrackingData(data);
+        setLastUpdated(prev => ({ ...prev, tracking: new Date() }));
+      }
+    } catch (error: any) {
+      if (!controller.signal.aborted && error?.name !== 'AbortError') {
+        setErrors(prev => ({ ...prev, tracking: error as Error }));
+      }
     } finally {
-      setLoading(prev => ({ ...prev, tracking: false }));
+      if (!controller.signal.aborted) {
+        setLoading(prev => ({ ...prev, tracking: false }));
+      }
     }
   }, []);
 
   const fetchRoutes = useCallback(async () => {
+    // Cancel any existing request
+    if (abortControllersRef.current.routes) {
+      abortControllersRef.current.routes.abort();
+    }
+    
+    // Create new abort controller
+    const controller = new AbortController();
+    abortControllersRef.current.routes = controller;
+    
     setLoading(prev => ({ ...prev, routes: true }));
     setErrors(prev => ({ ...prev, routes: null }));
     
     try {
       const data = await routeService.fetchRouteData();
-      setRawRouteData(data as any);
-      setLastUpdated(prev => ({ ...prev, routes: new Date() }));
-    } catch (error) {
-      setErrors(prev => ({ ...prev, routes: error as Error }));
+      
+      if (!controller.signal.aborted) {
+        setRawRouteData(data as any);
+        setLastUpdated(prev => ({ ...prev, routes: new Date() }));
+      }
+    } catch (error: any) {
+      if (!controller.signal.aborted) {
+        setErrors(prev => ({ ...prev, routes: error as Error }));
+      }
     } finally {
-      setLoading(prev => ({ ...prev, routes: false }));
+      if (!controller.signal.aborted) {
+        setLoading(prev => ({ ...prev, routes: false }));
+      }
     }
   }, []);
 
@@ -353,11 +408,17 @@ export const GlobalDataProvider: React.FC<GlobalDataProviderProps> = ({
     }
     
     return () => {
+      // Cancel all intervals
       intervals.forEach(clearInterval);
+      
+      // Abort any ongoing requests
+      Object.values(abortControllersRef.current).forEach(controller => {
+        controller?.abort();
+      });
     };
-    // Only run on mount and when cache durations change
+    // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cacheDurations]);
+  }, []);
 
   // Data access functions
   const getRiderById = useCallback((riderNo: string) => {

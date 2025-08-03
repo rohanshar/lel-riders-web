@@ -1,54 +1,54 @@
 import React, { useState, useMemo } from 'react';
-import { useSearchData } from '../contexts';
+import { useGlobalData } from '../contexts';
 
 const RidersList: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'name' | 'rider_no'>('rider_no');
-  const { riders: allRiders, loading, error } = useSearchData('');
+  const { 
+    enhancedRiders,
+    loading,
+    errors
+  } = useGlobalData();
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortByLocal, setSortByLocal] = useState<'name' | 'rider_no'>('rider_no');
+
+  // Filter and sort riders locally
   const filteredAndSortedRiders = useMemo(() => {
-    let filtered = allRiders.filter(rider => 
+    let filtered = enhancedRiders.filter(rider => 
       rider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       rider.rider_no.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return filtered.sort((a, b) => {
-      if (sortBy === 'name') {
+      if (sortByLocal === 'name') {
         return a.name.localeCompare(b.name);
       }
-      // Natural sort for rider numbers (handles alphanumeric correctly)
+      // Natural sort for rider numbers
       const aMatch = a.rider_no.match(/^([A-Z]+)(\d+)$/);
       const bMatch = b.rider_no.match(/^([A-Z]+)(\d+)$/);
       
       if (aMatch && bMatch) {
-        // Both have letter prefix and number
         const [, aPrefix, aNum] = aMatch;
         const [, bPrefix, bNum] = bMatch;
-        
-        // Compare prefix first
         const prefixCompare = aPrefix.localeCompare(bPrefix);
         if (prefixCompare !== 0) return prefixCompare;
-        
-        // If same prefix, compare numbers numerically
         return parseInt(aNum) - parseInt(bNum);
       }
       
-      // Fallback to regular string comparison
       return a.rider_no.localeCompare(b.rider_no);
     });
-  }, [allRiders, searchTerm, sortBy]);
+  }, [enhancedRiders, searchTerm, sortByLocal]);
 
-  if (loading) return (
+  if (loading.riders) return (
     <div className="flex justify-center items-center min-h-screen">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
     </div>
   );
 
-  if (error) return (
+  if (errors.riders) return (
     <div className="flex justify-center items-center min-h-screen">
       <div className="text-red-600 text-center">
         <p className="text-xl font-semibold">Error loading riders</p>
-        <p className="mt-2">{error.message}</p>
+        <p className="mt-2">{errors.riders.message}</p>
       </div>
     </div>
   );
@@ -57,7 +57,7 @@ const RidersList: React.FC = () => {
     <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-4">All Riders</h1>
-        <p className="text-gray-600">Total riders: {allRiders.length}</p>
+        <p className="text-gray-600">Total riders: {enhancedRiders.length}</p>
       </div>
 
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
@@ -73,8 +73,8 @@ const RidersList: React.FC = () => {
         <div>
           <select
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'name' | 'rider_no')}
+            value={sortByLocal}
+            onChange={(e) => setSortByLocal(e.target.value as 'name' | 'rider_no')}
           >
             <option value="rider_no">Sort by Rider No</option>
             <option value="name">Sort by Name</option>
