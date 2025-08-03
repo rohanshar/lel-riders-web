@@ -381,24 +381,37 @@ const IndianRiders: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="flex items-center text-muted-foreground text-sm">
           <Clock className="h-4 w-4 mr-2" />
-          Updated <span className="font-medium text-foreground ml-1">{timeSinceUpdate}</span>
+          Updated <span className={`font-medium ml-1 ${
+            lastUpdateTime && (new Date().getTime() - lastUpdateTime.getTime()) > 600000 
+              ? 'text-orange-600' 
+              : 'text-foreground'
+          }`}>{timeSinceUpdate}</span>
+          {lastUpdateTime && (new Date().getTime() - lastUpdateTime.getTime()) > 600000 && (
+            <span className="text-orange-600 ml-2">(Data may be stale)</span>
+          )}
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={async () => {
             setIsRefreshing(true);
+            console.log('[Manual Refresh] Starting refresh at', new Date().toISOString());
             try {
               await refreshTracking();
+              console.log('[Manual Refresh] Completed successfully');
+              // Force update of last update time
+              setLastUpdateTime(new Date());
+            } catch (error) {
+              console.error('[Manual Refresh] Failed:', error);
             } finally {
               setIsRefreshing(false);
             }
           }}
-          disabled={isRefreshing}
+          disabled={isRefreshing || loading}
           className="flex items-center gap-2"
         >
-          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          <RefreshCw className={`h-4 w-4 ${isRefreshing || loading ? 'animate-spin' : ''}`} />
+          {isRefreshing || loading ? 'Refreshing...' : 'Refresh'}
         </Button>
       </div>
 

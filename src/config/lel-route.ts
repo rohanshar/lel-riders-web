@@ -76,45 +76,46 @@ export const LONDON_START_CONTROLS: RouteControl[] = [
 
 /**
  * Wave start times for different rider groups
- * Base time: 5:00 AM for A and LA, then 15-minute increments
+ * Writtle start waves: Base time 4:00 AM, then 15-minute increments
+ * London start waves: Base time 5:00 AM, then 15-minute increments
  */
 export const WAVE_START_TIMES: { [key: string]: string } = {
-  // Writtle start waves
-  'A': '05:00',
-  'B': '05:15',
-  'C': '05:30',
-  'D': '05:45',
-  'E': '06:00',
-  'F': '06:15',
-  'G': '06:30',
-  'H': '06:45',
-  'I': '07:00',
-  'J': '07:15',
-  'K': '07:30',
-  'L': '07:45',
-  'M': '08:00',
-  'N': '08:15',
-  'O': '08:30',
-  'P': '08:45',
-  'Q': '09:00',
-  'R': '09:15',
-  'S': '09:30',
-  'T': '09:45',
-  'U': '10:00',
-  'V': '10:15',
-  'W': '10:30',
-  'X': '10:45',
-  'Y': '11:00',
-  'Z': '11:15',
-  'AA': '11:30',
-  'AB': '11:45',
-  'AC': '12:00',
-  'AD': '12:15',
-  'AE': '12:30',
-  'AF': '12:45',
-  'AG': '13:00',
+  // Writtle start waves (start at 4:00 AM)
+  'A': '04:00',
+  'B': '04:15',
+  'C': '04:30',
+  'D': '04:45',
+  'E': '05:00',
+  'F': '05:15',
+  'G': '05:30',
+  'H': '05:45',
+  'I': '06:00',
+  'J': '06:15',
+  'K': '06:30',
+  'L': '06:45',
+  'M': '07:00',
+  'N': '07:15',
+  'O': '07:30',
+  'P': '07:45',
+  'Q': '08:00',
+  'R': '08:15',
+  'S': '08:30',
+  'T': '08:45',
+  'U': '09:00',
+  'V': '09:15',
+  'W': '09:30',
+  'X': '09:45',
+  'Y': '10:00',
+  'Z': '10:15',
+  'AA': '10:30',
+  'AB': '10:45',
+  'AC': '11:00',
+  'AD': '11:15',
+  'AE': '11:30',
+  'AF': '11:45',
+  'AG': '12:00',
   
-  // London start waves
+  // London start waves (start at 5:00 AM)
   'LA': '05:00',
   'LB': '05:15',
   'LC': '05:30',
@@ -178,14 +179,20 @@ export const getCheckpointDistance = (checkpointName: string, riderNo: string): 
 /**
  * Get the wave start time for a rider
  * @param riderNo - The rider's bib number
- * @returns Start time in HH:MM format, or default "06:00" if not found
+ * @returns Start time in HH:MM format, or default based on rider type
  */
 export const getWaveStartTime = (riderNo: string): string => {
   const waveMatch = riderNo.match(/^([A-Z]+)/);
   if (waveMatch) {
-    return WAVE_START_TIMES[waveMatch[1]] || '06:00';
+    const waveCode = waveMatch[1];
+    if (WAVE_START_TIMES[waveCode]) {
+      return WAVE_START_TIMES[waveCode];
+    }
+    // Default based on whether it's a London start or not
+    return isLondonStartRider(riderNo) ? '05:00' : '04:00';
   }
-  return '06:00';
+  // Default for non-London riders
+  return '04:00';
 };
 
 /**

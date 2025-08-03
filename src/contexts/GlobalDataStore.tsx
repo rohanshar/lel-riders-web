@@ -330,9 +330,24 @@ export const GlobalDataProvider: React.FC<GlobalDataProviderProps> = ({
     setErrors(prev => ({ ...prev, tracking: null }));
     
     try {
-      const response = await fetch('https://lel-riders-data-2025.s3.ap-south-1.amazonaws.com/indian-riders-tracking.json', {
-        signal: controller.signal
+      // Add timestamp to URL to bypass cache
+      const timestamp = Date.now();
+      const url = `https://lel-riders-data-2025.s3.ap-south-1.amazonaws.com/indian-riders-tracking.json?t=${timestamp}`;
+      
+      const response = await fetch(url, {
+        signal: controller.signal,
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (!controller.signal.aborted) {

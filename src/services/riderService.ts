@@ -33,9 +33,19 @@ class RiderService {
     }
 
     try {
-      const response = await fetch(url, {
+      // Add cache-busting headers and timestamp
+      const urlWithTimestamp = url.includes('?') ? `${url}&t=${Date.now()}` : `${url}?t=${Date.now()}`;
+      
+      const response = await fetch(urlWithTimestamp, {
         ...options,
         signal: controller.signal,
+        cache: 'no-cache',
+        headers: {
+          ...options.headers,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
 
       clearTimeout(timeoutId);
