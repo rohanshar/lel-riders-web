@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-LEL 2025 Riders Tracking Web App - A React-based application for tracking riders in the London-Edinburgh-London 2025 cycling event. The app displays real-time rider progress, including Indian riders specifically, with multiple view modes including progress cards, table views, timeline views, and interactive maps.
+LEL 2025 Riders Tracking Web App - A React-based application for tracking riders in the London-Edinburgh-London 2025 cycling event. The app displays real-time rider progress, including Indian riders specifically, with timeline views and interactive maps.
 
 ## Development Commands
 
@@ -68,7 +68,7 @@ The application uses a modular data processing system in `src/utils/dataProcesso
 - **WavesSummary**: Overview of all rider waves
 - **WaveDetail**: Detailed view of a specific wave
 - **RidersList**: Searchable list of all riders
-- **IndianRiders**: Main component with multiple view modes (progress, table, timeline)
+- **IndianRiders**: Main component with timeline view showing control point progress
 - **IndianRidersTimeline**: Timeline view showing control points with expandable cards
 - **IndianRidersMap**: Interactive map view using Leaflet
 - **IndianRidersTable**: Tabular view of rider data

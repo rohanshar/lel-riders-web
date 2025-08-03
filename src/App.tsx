@@ -4,8 +4,6 @@ import HomePage from './components/HomePage';
 import WavesSummary from './components/WavesSummary';
 import WaveDetail from './components/WaveDetail';
 import RidersList from './components/RidersList';
-import IndianRidersProgress from './components/IndianRidersProgress';
-import IndianRidersTableView from './components/IndianRidersTableView';
 import IndianRidersTimeline from './components/IndianRidersTimeline';
 import RouteMap from './components/RouteMap';
 import { Menu, X, Users, Flag, Home, Grid3x3, Map } from 'lucide-react';
@@ -136,8 +134,6 @@ function AppContent() {
               <Route path="/route" element={<AsyncBoundary><RouteMap /></AsyncBoundary>} />
               <Route path="/all-riders" element={<AsyncBoundary><RidersList /></AsyncBoundary>} />
               <Route path="/indian-riders" element={<AsyncBoundary><IndianRidersTimeline /></AsyncBoundary>} />
-              <Route path="/indian-riders/progress" element={<AsyncBoundary><IndianRidersProgress /></AsyncBoundary>} />
-              <Route path="/indian-riders/table" element={<AsyncBoundary><IndianRidersTableView /></AsyncBoundary>} />
             </Routes>
           </div>
         </main>

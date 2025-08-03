@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
-import { Link, useLocation } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +12,6 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import IndianRidersMap from './IndianRidersMap';
-import IndianRidersTable from './IndianRidersTable';
 import { 
   getCheckpointDistance, 
   getTotalDistanceForRider,
@@ -49,12 +47,7 @@ interface Control {
   leg: 'North' | 'South';
 }
 
-interface IndianRidersProps {
-  defaultView?: 'progress' | 'table' | 'timeline';
-}
-
-const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' }) => {
-  const location = useLocation();
+const IndianRiders: React.FC = () => {
   const { 
     rawTrackingData,
     rawRouteData,
@@ -69,14 +62,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
   const [londonTime, setLondonTime] = useState<string>('');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [cardSortBy, setCardSortBy] = useState<Record<string, 'rank' | 'arrival'>>({});
-
-  // Determine current view based on URL
-  const selectedView = (() => {
-    if (location.pathname === '/indian-riders/table') return 'table';
-    if (location.pathname === '/indian-riders/progress') return 'progress';
-    if (location.pathname === '/indian-riders') return 'timeline';
-    return 'timeline';
-  })();
+  const [showStats, setShowStats] = useState(false);
 
   // Map GlobalData to component's expected format
   const trackingData = useMemo(() => {
@@ -84,7 +70,6 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
     return rawTrackingData;
   }, [rawTrackingData]);
   
-
   const loading = globalLoading.tracking;
   const error = globalError.tracking?.message || null;
   const routeData = rawRouteData;
@@ -110,193 +95,7 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
     return () => clearInterval(interval);
   }, []);
 
-  const processedRiders = useMemo(() => {
-    if (!trackingData) return [];
-
-    return trackingData.riders.map((rider: Rider) => {
-      // Calculate current checkpoint
-      const currentCheckpoint = rider.last_checkpoint || 'Not Started';
-
-      // Calculate elapsed time and average speed for in_progress riders
-      let elapsedTime = 0;
-      let averageSpeed = 0;
-      let estimatedDistance = rider.distance_km;
-
-      // Calculate actual distance from checkpoint if not provided
-      let actualDistance = rider.distance_km;
-      if (rider.last_checkpoint && rider.distance_km === 0) {
-        const checkpointDist = getCheckpointDistance(rider.last_checkpoint, rider.rider_no);
-        if (checkpointDist > 0) {
-          actualDistance = checkpointDist;
-          estimatedDistance = checkpointDist;
-        }
-      }
-      
-      if (rider.checkpoints.length > 0 || rider.status === 'in_progress' || rider.status === 'finished') {
-        // For in_progress riders with no checkpoints yet, create a virtual start checkpoint
-        let startCheckpoint = rider.checkpoints.length > 0 ? rider.checkpoints[0] : null;
-        
-        // If rider is in_progress but has no checkpoints, use their wave start time
-        if (!startCheckpoint && rider.status === 'in_progress') {
-          const startTimeStr = getWaveStartTime(rider.rider_no);
-          startCheckpoint = { name: 'Start', time: `Sunday ${startTimeStr}` };
-        }
-        
-        if (startCheckpoint) {
-          // Parse time format like "Sunday 04:40"
-          const parseTime = (timeStr: string) => {
-            const parts = timeStr.split(' ');
-            if (parts.length >= 2) {
-              const timePart = parts[parts.length - 1];
-              const [hours, minutes] = timePart.split(':').map(Number);
-              // Event is in UK time (BST = UTC+1)
-              // Get the current UK date
-              const ukNow = new Date();
-              const ukFormatter = new Intl.DateTimeFormat('en-GB', {
-                timeZone: 'Europe/London',
-                year: 'numeric',
-                month: 'numeric',
-                day: 'numeric'
-              });
-              const ukDateParts = ukFormatter.formatToParts(ukNow);
-              const ukYear = parseInt(ukDateParts.find(p => p.type === 'year')!.value);
-              const ukMonth = parseInt(ukDateParts.find(p => p.type === 'month')!.value) - 1; // JS months are 0-indexed
-              const ukDay = parseInt(ukDateParts.find(p => p.type === 'day')!.value);
-              
-              // Create date for the checkpoint time
-              const eventStartDate = new Date(ukYear, ukMonth, ukDay, hours, minutes, 0, 0);
-              
-              // If the checkpoint time is in the future (e.g., checkpoint says 07:23 but current time is 07:44),
-              // it means the checkpoint was from earlier today
-              if (eventStartDate > ukNow) {
-                // Use today's date
-                return eventStartDate;
-              }
-              
-              return eventStartDate;
-            }
-            return null;
-          };
-          
-          const startTime = parseTime(startCheckpoint.time);
-          if (startTime) {
-            // Get current UK time - fix the time zone conversion
-            const now = new Date();
-            const ukFormatter = new Intl.DateTimeFormat('en-GB', {
-              timeZone: 'Europe/London',
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: false
-            });
-            
-            const ukParts = ukFormatter.formatToParts(now);
-            const ukTime = new Date(
-              parseInt(ukParts.find(p => p.type === 'year')!.value),
-              parseInt(ukParts.find(p => p.type === 'month')!.value) - 1,
-              parseInt(ukParts.find(p => p.type === 'day')!.value),
-              parseInt(ukParts.find(p => p.type === 'hour')!.value),
-              parseInt(ukParts.find(p => p.type === 'minute')!.value),
-              parseInt(ukParts.find(p => p.type === 'second')!.value)
-            );
-            
-            elapsedTime = Math.floor((ukTime.getTime() - startTime.getTime()) / 1000 / 60); // minutes
-            
-            // Make sure elapsed time is positive
-            if (elapsedTime < 0) elapsedTime = 0;
-            
-            if (actualDistance > 0 && elapsedTime > 0) {
-              averageSpeed = actualDistance / (elapsedTime / 60); // km/h
-            }
-            
-            // Always calculate estimated distance based on elapsed time
-            if (elapsedTime > 0) {
-              // If they have recorded distance, estimate from their last checkpoint
-              if (actualDistance > 0) {
-                // Find time since last checkpoint
-                const lastCheckpoint = rider.checkpoints[rider.checkpoints.length - 1];
-                if (lastCheckpoint) {
-                  const lastCheckpointTime = parseTime(lastCheckpoint.time);
-                  if (lastCheckpointTime) {
-                    const timeSinceLastCheckpoint = Math.floor((ukTime.getTime() - lastCheckpointTime.getTime()) / 1000 / 60); // minutes
-                    // Estimate distance covered since last checkpoint at 18 km/h
-                    const distanceSinceLastCheckpoint = Math.min(18 * (timeSinceLastCheckpoint / 60), 200); // Cap at 200km
-                    estimatedDistance = actualDistance + distanceSinceLastCheckpoint;
-                  }
-                }
-              } else {
-                // If no distance recorded yet, estimate based on 18 km/h average from start
-                estimatedDistance = Math.min(18 * (elapsedTime / 60), 200); // Cap initial estimate at 200km
-              }
-            }
-          }
-        }
-      }
-
-      return {
-        ...rider,
-        distance_km: actualDistance,
-        current_checkpoint: currentCheckpoint,
-        elapsed_time: elapsedTime,
-        average_speed: averageSpeed,
-        estimated_distance: estimatedDistance
-      };
-    });
-  }, [trackingData]);
-
-  const filteredRiders = useMemo(() => {
-    let riders = processedRiders;
-
-    // Apply search filter
-    if (searchTerm) {
-      riders = riders.filter((rider: Rider) =>
-        rider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        rider.rider_no.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Sort riders
-    switch (sortBy) {
-      case 'distance':
-        return riders.sort((a: Rider, b: Rider) => b.distance_km - a.distance_km);
-      case 'name':
-        return riders.sort((a: Rider, b: Rider) => a.name.localeCompare(b.name));
-      case 'rider_no':
-        return riders.sort((a: Rider, b: Rider) => a.rider_no.localeCompare(b.rider_no));
-      case 'status':
-        const statusOrder = { in_progress: 0, finished: 1, not_started: 2, dnf: 3 };
-        return riders.sort((a: Rider, b: Rider) => statusOrder[a.status] - statusOrder[b.status]);
-      default:
-        return riders;
-    }
-  }, [processedRiders, searchTerm, sortBy]);
-
-  const statistics = useMemo(() => {
-    if (!trackingData) return null;
-
-    const total = trackingData.riders.length;
-    const inProgress = trackingData.riders.filter((r: Rider) => r.status === 'in_progress').length;
-    const finished = trackingData.riders.filter((r: Rider) => r.status === 'finished').length;
-    const dnf = trackingData.riders.filter((r: Rider) => r.status === 'dnf').length;
-    const notStarted = trackingData.riders.filter((r: Rider) => r.status === 'not_started').length;
-
-    return { total, inProgress, finished, dnf, notStarted };
-  }, [trackingData]);
-
-  const formatTime = (minutes: number) => {
-    const days = Math.floor(minutes / 1440);
-    const hours = Math.floor((minutes % 1440) / 60);
-    const mins = minutes % 60;
-    
-    if (days > 0) {
-      return `${days}d ${hours}h ${mins}m`;
-    }
-    return `${hours}h ${mins}m`;
-  };
-
+  // Toggle card expansion
   const toggleCardExpansion = (cardId: string) => {
     setExpandedCards(prev => {
       const newSet = new Set(prev);
@@ -309,59 +108,136 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
     });
   };
 
+  // Calculate statistics
+  const statistics = useMemo(() => {
+    if (!trackingData) return { total: 0, inProgress: 0, finished: 0, dnf: 0, notStarted: 0 };
+    
+    const riders = trackingData.riders || [];
+    const inProgress = riders.filter((r: Rider) => r.status === 'in_progress').length;
+    const finished = riders.filter((r: Rider) => r.status === 'finished').length;
+    const dnf = riders.filter((r: Rider) => r.status === 'dnf').length;
+    const notStarted = riders.filter((r: Rider) => r.status === 'not_started').length;
+    
+    return { total: riders.length, inProgress, finished, dnf, notStarted };
+  }, [trackingData]);
+
+  // Helper functions
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'in_progress':
-        return <Badge className="bg-green-500 text-white">In Progress</Badge>;
+        return <Badge className="bg-blue-500">In Progress</Badge>;
       case 'finished':
-        return <Badge className="bg-blue-500 text-white">Finished</Badge>;
+        return <Badge className="bg-green-500">Finished</Badge>;
       case 'dnf':
-        return <Badge className="bg-red-500 text-white">DNF</Badge>;
+        return <Badge className="bg-red-500">DNF</Badge>;
+      case 'not_started':
+        return <Badge className="bg-gray-500">Not Started</Badge>;
       default:
-        return <Badge className="bg-gray-500 text-white">Not Started</Badge>;
+        return <Badge>{status}</Badge>;
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'in_progress':
-        return <Loader2 className="h-4 w-4 animate-spin text-green-500" />;
+        return <Activity className="h-4 w-4 text-blue-500" />;
       case 'finished':
-        return <CheckCircle className="h-4 w-4 text-blue-500" />;
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'dnf':
         return <XCircle className="h-4 w-4 text-red-500" />;
-      default:
+      case 'not_started':
         return <AlertCircle className="h-4 w-4 text-gray-500" />;
+      default:
+        return null;
     }
   };
 
+  // Filter and sort riders
+  const filteredRiders = useMemo(() => {
+    if (!trackingData) return [];
+    
+    let riders = trackingData.riders || [];
+    
+    // Filter by search term
+    if (searchTerm) {
+      riders = riders.filter((rider: Rider) => 
+        rider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        rider.rider_no.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Sort riders
+    riders = [...riders].sort((a: Rider, b: Rider) => {
+      switch (sortBy) {
+        case 'distance':
+          return b.distance_km - a.distance_km;
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'rider_no':
+          return a.rider_no.localeCompare(b.rider_no);
+        case 'status':
+          const statusOrder = { in_progress: 0, finished: 1, not_started: 2, dnf: 3 };
+          return (statusOrder[a.status as keyof typeof statusOrder] || 999) - 
+                 (statusOrder[b.status as keyof typeof statusOrder] || 999);
+        default:
+          return 0;
+      }
+    });
+    
+    return riders;
+  }, [trackingData, searchTerm, sortBy]);
+
   if (loading) return (
-    <div className="flex justify-center items-center min-h-[600px]">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+    <div className="flex justify-center items-center min-h-screen">
+      <Loader2 className="h-8 w-8 animate-spin" />
     </div>
   );
 
   if (error) return (
-    <div className="flex justify-center items-center min-h-[600px]">
+    <div className="flex justify-center items-center min-h-screen">
       <Card className="border-destructive">
         <CardHeader>
-          <CardTitle className="text-destructive">Error loading tracking data</CardTitle>
+          <CardTitle className="text-destructive">Error loading data</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
       </Card>
     </div>
   );
 
-  if (!trackingData || !statistics) return null;
+  if (!trackingData) return null;
 
   return (
     <div className="space-y-6">
       {/* Header Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="border rounded-lg p-4">
+        <div 
+          className="flex items-center justify-between cursor-pointer"
+          onClick={() => setShowStats(!showStats)}
+        >
+          <h2 className="text-lg font-semibold">Statistics</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              {statistics.inProgress} riding • {statistics.finished} finished
+            </span>
+            {showStats ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+          </div>
+        </div>
+        
+        {showStats && (
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Riders</CardTitle>
-            <Users className="h-4 w-4 text-primary opacity-50" />
+            <Users className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{statistics.total}</div>
@@ -372,10 +248,10 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-            <Loader2 className="h-4 w-4 text-green-500 animate-spin" />
+            <Activity className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{statistics.inProgress}</div>
+            <div className="text-2xl font-bold text-blue-600">{statistics.inProgress}</div>
             <p className="text-xs text-muted-foreground">Currently riding</p>
           </CardContent>
         </Card>
@@ -383,10 +259,10 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Finished</CardTitle>
-            <CheckCircle className="h-4 w-4 text-blue-500" />
+            <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{statistics.finished}</div>
+            <div className="text-2xl font-bold text-green-600">{statistics.finished}</div>
             <p className="text-xs text-muted-foreground">Completed the ride</p>
           </CardContent>
         </Card>
@@ -412,6 +288,8 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
             <p className="text-xs text-muted-foreground">Yet to start</p>
           </CardContent>
         </Card>
+          </div>
+        )}
       </div>
 
       {/* London Time Display */}
@@ -481,392 +359,209 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
             </CardContent>
           </Card>
 
-          {/* View Navigation */}
-          <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
-            <Link 
-              to="/indian-riders" 
-              className={`flex-1 text-center px-4 py-2 rounded-md font-medium transition-colors ${
-                selectedView === 'timeline' 
-                  ? 'bg-white text-primary shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Timeline View
-            </Link>
-            <Link 
-              to="/indian-riders/progress" 
-              className={`flex-1 text-center px-4 py-2 rounded-md font-medium transition-colors ${
-                selectedView === 'progress' 
-                  ? 'bg-white text-primary shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Progress View
-            </Link>
-            <Link 
-              to="/indian-riders/table" 
-              className={`flex-1 text-center px-4 py-2 rounded-md font-medium transition-colors ${
-                selectedView === 'table' 
-                  ? 'bg-white text-primary shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              Table View
-            </Link>
-          </div>
+          {/* Timeline View */}
+          <div className="space-y-3">
+            {(() => {
+              // Create merged controls list, treating Writtle and London as "Start"
+              const mergedControls = trackingData.event.controls.reduce((acc: any[], control: any) => {
+                // Skip London control, merge it with Writtle as "Start"
+                if (control.name === 'London') return acc;
+                
+                // Rename Writtle to Start and set km to 0
+                if (control.name === 'Writtle') {
+                  return [...acc, { ...control, name: 'Start', km: 0, id: 'start' }];
+                }
+                
+                return [...acc, control];
+              }, [] as Control[]);
 
-          {/* Content based on selected view */}
-          {selectedView === 'progress' && (
-            <div className="space-y-4">
-          {filteredRiders.map((rider: Rider, index: number) => (
-            <Card 
-              key={rider.rider_no} 
-              className="cursor-pointer hover:shadow-md transition-shadow border-gray-200"
-              onClick={() => setSelectedRider(rider)}
-            >
-              <CardContent className="p-6">
-                <div className="space-y-3">
-                  {/* Header Section */}
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-xl font-bold">
-                        #{index + 1} {rider.name}
-                      </h3>
-                      <div className="flex items-center gap-3 text-sm text-gray-600 mt-1">
-                        <span>Bib: {rider.rider_no}</span>
-                        <span>Wave: {rider.rider_no.match(/^[A-Z]+/)?.[0] || ''}</span>
-                        <span>Started: {(() => {
-                          // Extract start time from rider data or use wave default
-                          if (rider.checkpoints.length > 0) {
-                            return rider.checkpoints[0].time.split(' ')[1];
-                          }
-                          return getWaveStartTime(rider.rider_no);
-                        })()}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      {rider.elapsed_time !== undefined && rider.elapsed_time > 0 && (
-                        <div className="text-sm text-gray-600">
-                          Elapsed: {formatTime(rider.elapsed_time)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Current Location */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="h-4 w-4 text-gray-600" />
-                    <span>Current Location: <strong>{rider.current_checkpoint || 'Start'}</strong></span>
-                  </div>
-
-                  {/* Progress Bar with Controls */}
-                  {(rider.status === 'in_progress' || rider.status === 'finished' || rider.status === 'not_started') && (() => {
-                    // Get route information for this rider
-                    const controlDistances = getControlsForRider(rider.rider_no);
-                    const totalDistance = getTotalDistanceForRider(rider.rider_no);
-                    
-                    return (
-                      <div className="mt-3">
-                        <div className="relative">
-                          {/* Progress bar background */}
-                          <div className="w-full bg-gray-200 h-2">
-                            {/* Show estimated progress for all riders */}
-                            {(() => {
-                              const showEstimated = rider.estimated_distance !== undefined && rider.estimated_distance > 0;
-                              const estimatedWidth = showEstimated && rider.estimated_distance ? Math.min((rider.estimated_distance / totalDistance) * 100, 100) : 0;
-                              const actualWidth = rider.distance_km > 0 ? Math.min((rider.distance_km / totalDistance) * 100, 100) : 0;
-                              
-                              return (
-                                <>
-                                  {showEstimated && (
-                                    <div
-                                      className="bg-blue-300 h-2 transition-all duration-300"
-                                      style={{ width: `${estimatedWidth}%` }}
-                                    />
-                                  )}
-                                  {rider.distance_km > 0 && (
-                                    <div
-                                      className="absolute top-0 bg-blue-500 h-2 transition-all duration-300"
-                                      style={{ width: `${actualWidth}%` }}
-                                    />
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
-                          
-                          {/* Control point markers */}
-                          <div className="absolute top-0 w-full h-2">
-                            {controlDistances.slice(0, 6).map((control: any) => (
-                              <div
-                                key={`${control.name}-${control.km}`}
-                                className="absolute top-0"
-                                style={{ left: `${(control.km / totalDistance) * 100}%` }}
-                              >
-                                <div className="w-0.5 h-2 bg-gray-400"></div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        {/* Control labels with distances */}
-                        <div className="flex justify-between mt-1">
-                          {controlDistances.slice(0, 5).map((control: any, index: number) => {
-                            const isReached = rider.distance_km >= control.km;
-                            const prevControl = index > 0 ? controlDistances[index - 1] : null;
-                            const distance = prevControl ? control.km - prevControl.km : control.km;
-                            
-                            return (
-                              <div key={`${control.name}-${index}`} className="text-center">
-                                <div className={`text-xs ${isReached ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
-                                  {control.name}
-                                </div>
-                                {index > 0 && (
-                                  <div className="text-xs text-gray-400 mt-0.5">
-                                    {distance} km
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+              return mergedControls.slice(0, 10).map((control: any) => {
+                const isStart = control.name === 'Start';
+                const cardId = control.id || control.name;
+                const isExpanded = expandedCards.has(cardId);
+                
+                // For Start, include riders who have "Start", "Writtle", or "London" in their checkpoints
+                const ridersAtControl = filteredRiders.filter((rider: Rider) => {
+                  if (isStart) {
+                    return rider.checkpoints.some(cp => 
+                      cp.name === 'Start' || 
+                      cp.name === 'Writtle' || 
+                      cp.name === 'London' ||
+                      cp.name.includes('Start')
                     );
-                  })()}
-
-                  {/* Average Speed and Legend */}
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
-                      <Activity className="h-4 w-4" />
-                      <span>
-                        Average Speed: {rider.average_speed && rider.average_speed > 0 ? `${rider.average_speed.toFixed(1)} km/h` : '0.0 km/h'}
-                      </span>
-                    </div>
-                    {rider.estimated_distance && rider.estimated_distance > rider.distance_km && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <div className="w-3 h-3 bg-blue-300"></div>
-                        <span>Estimated @ 18 km/h</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-            </div>
-          )}
-
-          {selectedView === 'table' && (
-            <IndianRidersTable 
-              riders={filteredRiders}
-              onRiderClick={setSelectedRider}
-            />
-          )}
-
-          {selectedView === 'timeline' && (
-            <div className="space-y-3">
-              {(() => {
-                // Create merged controls list, treating Writtle and London as "Start"
-                const mergedControls = trackingData.event.controls.reduce((acc: any[], control: any) => {
-                  // Skip London control, merge it with Writtle as "Start"
-                  if (control.name === 'London') return acc;
-                  
-                  // Rename Writtle to Start and set km to 0
-                  if (control.name === 'Writtle') {
-                    return [...acc, { ...control, name: 'Start', km: 0, id: 'start' }];
                   }
-                  
-                  return [...acc, control];
-                }, [] as Control[]);
-
-                return mergedControls.slice(0, 10).map((control: any) => {
-                  const isStart = control.name === 'Start';
-                  const cardId = control.id || control.name;
-                  const isExpanded = expandedCards.has(cardId);
-                  
-                  // For Start, include riders who have "Start", "Writtle", or "London" in their checkpoints
-                  const ridersAtControl = filteredRiders.filter((rider: Rider) => {
-                    if (isStart) {
-                      return rider.checkpoints.some(cp => 
-                        cp.name === 'Start' || 
-                        cp.name === 'Writtle' || 
-                        cp.name === 'London' ||
-                        cp.name.includes('Start')
-                      );
-                    }
-                    return rider.checkpoints.some(cp => {
-                      return cp.name === control.name || 
-                             cp.name.includes(control.name);
-                    });
+                  return rider.checkpoints.some(cp => {
+                    return cp.name === control.name || 
+                           cp.name.includes(control.name);
                   });
+                });
 
-                  const riderCount = ridersAtControl.length;
+                const riderCount = ridersAtControl.length;
 
-                  return (
-                    <Card key={cardId} className="overflow-hidden">
-                      <CardHeader className="py-3">
-                        <div 
-                          className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded p-2 -m-2"
-                          onClick={() => toggleCardExpansion(cardId)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <CardTitle className="text-base">
-                              {control.name} {!isStart && `(${control.km} km)`}
-                            </CardTitle>
-                            <Badge variant="secondary" className="text-xs">
-                              {riderCount} {riderCount === 1 ? 'rider' : 'riders'}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground">{control.leg} Leg</span>
-                            {riderCount > 0 && (
-                              isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-                            )}
-                          </div>
+                return (
+                  <Card key={cardId} className="overflow-hidden">
+                    <CardHeader className="py-3">
+                      <div 
+                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded p-2 -m-2"
+                        onClick={() => toggleCardExpansion(cardId)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <CardTitle className="text-base">
+                            {control.name} {!isStart && `(${control.km} km)`}
+                          </CardTitle>
+                          <Badge variant="secondary" className="text-xs">
+                            {riderCount} {riderCount === 1 ? 'rider' : 'riders'}
+                          </Badge>
                         </div>
-                        {!isExpanded && riderCount > 0 && (() => {
-                          // Get latest 3 arrivals
-                          const sortedByArrival = [...ridersAtControl].sort((a: Rider, b: Rider) => {
-                            const aTime = a.checkpoints.find((cp: Checkpoint) => 
-                              cp.name === control.name || cp.name.includes(control.name)
-                            )?.time || '';
-                            const bTime = b.checkpoints.find((cp: Checkpoint) => 
-                              cp.name === control.name || cp.name.includes(control.name)
-                            )?.time || '';
-                            return bTime.localeCompare(aTime);
-                          }).slice(0, 3);
-                          
-                          return (
-                            <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2">
-                              <Activity className="h-3 w-3" />
-                              <span>Latest: {sortedByArrival.map(r => r.name.split(' ')[0]).join(', ')}</span>
-                            </div>
-                          );
-                        })()}
-                      </CardHeader>
-                      {isExpanded && riderCount > 0 && (
-                        <CardContent className="pt-0 pb-3">
-                          <div className="mb-3 flex justify-end">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCardSortBy(prev => ({
-                                  ...prev,
-                                  [cardId]: prev[cardId] === 'arrival' ? 'rank' : 'arrival'
-                                }));
-                              }}
-                              className="text-xs"
-                            >
-                              Sort by: {cardSortBy[cardId] === 'arrival' ? 'Arrival Time ↓' : 'Rank (Elapsed Time)'}
-                            </Button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">{control.leg} Leg</span>
+                          {riderCount > 0 && (
+                            isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                          )}
+                        </div>
+                      </div>
+                      {!isExpanded && riderCount > 0 && (() => {
+                        // Get latest 3 arrivals
+                        const sortedByArrival = [...ridersAtControl].sort((a: Rider, b: Rider) => {
+                          const aTime = a.checkpoints.find((cp: Checkpoint) => 
+                            cp.name === control.name || cp.name.includes(control.name)
+                          )?.time || '';
+                          const bTime = b.checkpoints.find((cp: Checkpoint) => 
+                            cp.name === control.name || cp.name.includes(control.name)
+                          )?.time || '';
+                          return bTime.localeCompare(aTime);
+                        }).slice(0, 3);
+                        
+                        return (
+                          <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2">
+                            <Activity className="h-3 w-3" />
+                            <span>Latest: {sortedByArrival.map(r => r.name.split(' ')[0]).join(', ')}</span>
                           </div>
-                          <div className="space-y-1">
-                            {(() => {
-                              // Sort riders by elapsed time
-                              interface RiderWithElapsedTime {
-                                rider: Rider;
-                                checkpoint: Checkpoint | undefined;
-                                elapsedMinutes: number;
-                                elapsedFormatted: string;
-                              }
+                        );
+                      })()}
+                    </CardHeader>
+                    {isExpanded && riderCount > 0 && (
+                      <CardContent className="pt-0 pb-3">
+                        <div className="mb-3 flex justify-end">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCardSortBy(prev => ({
+                                ...prev,
+                                [cardId]: prev[cardId] === 'arrival' ? 'rank' : 'arrival'
+                              }));
+                            }}
+                            className="text-xs"
+                          >
+                            Sort by: {cardSortBy[cardId] === 'arrival' ? 'Arrival Time ↓' : 'Rank (Elapsed Time)'}
+                          </Button>
+                        </div>
+                        <div className="space-y-1">
+                          {(() => {
+                            // Sort riders by elapsed time
+                            interface RiderWithElapsedTime {
+                              rider: Rider;
+                              checkpoint: Checkpoint | undefined;
+                              elapsedMinutes: number;
+                              elapsedFormatted: string;
+                            }
+                            
+                            const ridersWithElapsedTime = ridersAtControl.map((rider: Rider): RiderWithElapsedTime => {
+                              const checkpoint = rider.checkpoints.find(cp => {
+                                if (isStart) {
+                                  return cp.name === 'Start' || 
+                                         cp.name === 'Writtle' || 
+                                         cp.name === 'London' ||
+                                         cp.name.includes('Start');
+                                }
+                                return cp.name === control.name || 
+                                       cp.name.includes(control.name);
+                              });
                               
-                              const ridersWithElapsedTime = ridersAtControl.map((rider: Rider): RiderWithElapsedTime => {
-                                const checkpoint = rider.checkpoints.find(cp => {
-                                  if (isStart) {
-                                    return cp.name === 'Start' || 
-                                           cp.name === 'Writtle' || 
-                                           cp.name === 'London' ||
-                                           cp.name.includes('Start');
-                                  }
-                                  return cp.name === control.name || 
-                                         cp.name.includes(control.name);
-                                });
-                                
-                                // Calculate elapsed time directly
-                                let elapsedMinutes = 0;
-                                let elapsedFormatted = '';
-                                
-                                if (checkpoint) {
-                                  // For start checkpoint, elapsed time is 0
-                                  if (isStart) {
-                                    elapsedMinutes = 0;
-                                    elapsedFormatted = '0m';
-                                  } else {
-                                    // Calculate elapsed time from wave start
-                                    const elapsed = calculateElapsedTime(rider.rider_no, checkpoint.time);
-                                    if (elapsed !== null) {
-                                      elapsedMinutes = elapsed;
-                                      elapsedFormatted = formatElapsedTime(elapsed);
-                                    }
+                              // Calculate elapsed time directly
+                              let elapsedMinutes = 0;
+                              let elapsedFormatted = '';
+                              
+                              if (checkpoint) {
+                                // For start checkpoint, elapsed time is 0
+                                if (isStart) {
+                                  elapsedMinutes = 0;
+                                  elapsedFormatted = '0m';
+                                } else {
+                                  // Calculate elapsed time from wave start
+                                  const elapsed = calculateElapsedTime(rider.rider_no, checkpoint.time);
+                                  if (elapsed !== null) {
+                                    elapsedMinutes = elapsed;
+                                    elapsedFormatted = formatElapsedTime(elapsed);
                                   }
                                 }
-                                
-                                return {
-                                  rider,
-                                  checkpoint,
-                                  elapsedMinutes,
-                                  elapsedFormatted
-                                };
-                              }).filter((item: RiderWithElapsedTime) => item.checkpoint);
-                              
-                              // Sort based on selected option
-                              const sortMode = cardSortBy[cardId] || 'rank';
-                              if (sortMode === 'arrival') {
-                                // Sort by arrival time (latest first)
-                                ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => {
-                                  const aTime = a.checkpoint?.time || '';
-                                  const bTime = b.checkpoint?.time || '';
-                                  return bTime.localeCompare(aTime);
-                                });
-                              } else {
-                                // Sort by elapsed time (fastest first)
-                                ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => a.elapsedMinutes - b.elapsedMinutes);
                               }
                               
-                              return ridersWithElapsedTime.map(({ rider, checkpoint, elapsedFormatted }: RiderWithElapsedTime, index: number) => {
-                                if (!checkpoint) return null;
-
-                                return (
-                                  <div 
-                                    key={rider.rider_no} 
-                                    className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer text-sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedRider(rider);
-                                    }}
-                                  >
-                                    <div className="flex items-center gap-2 flex-1">
-                                      {sortMode === 'rank' && (
-                                        <span className="text-xs font-medium text-muted-foreground w-8">#{index + 1}</span>
-                                      )}
-                                      {getStatusIcon(rider.status)}
-                                      <span className="font-medium">{rider.name}</span>
-                                      <span className="text-xs text-muted-foreground">({rider.rider_no})</span>
-                                    </div>
-                                    <div className="flex items-center gap-4 text-xs">
-                                      <span className="text-muted-foreground">{checkpoint.time}</span>
-                                      <Badge 
-                                        variant={sortMode === 'rank' && index < 3 ? "default" : "secondary"} 
-                                        className="text-xs px-2 py-0 min-w-[60px] text-center"
-                                      >
-                                        {elapsedFormatted}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                );
+                              return {
+                                rider,
+                                checkpoint,
+                                elapsedMinutes,
+                                elapsedFormatted
+                              };
+                            }).filter((item: RiderWithElapsedTime) => item.checkpoint);
+                            
+                            // Sort based on selected option
+                            const sortMode = cardSortBy[cardId] || 'rank';
+                            if (sortMode === 'arrival') {
+                              // Sort by arrival time (latest first)
+                              ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => {
+                                const aTime = a.checkpoint?.time || '';
+                                const bTime = b.checkpoint?.time || '';
+                                return bTime.localeCompare(aTime);
                               });
-                            })()}
-                          </div>
-                        </CardContent>
-                      )}
-                    </Card>
-                  );
-                });
-              })()}
-            </div>
-          )}
+                            } else {
+                              // Sort by elapsed time (fastest first)
+                              ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => a.elapsedMinutes - b.elapsedMinutes);
+                            }
+                            
+                            return ridersWithElapsedTime.map(({ rider, checkpoint, elapsedFormatted }: RiderWithElapsedTime, index: number) => {
+                              if (!checkpoint) return null;
+
+                              return (
+                                <div 
+                                  key={rider.rider_no} 
+                                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer text-sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedRider(rider);
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2 flex-1">
+                                    {sortMode === 'rank' && (
+                                      <span className="text-xs font-medium text-muted-foreground w-8">#{index + 1}</span>
+                                    )}
+                                    {getStatusIcon(rider.status)}
+                                    <span className="font-medium">{rider.name}</span>
+                                    <span className="text-xs text-muted-foreground">({rider.rider_no})</span>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-xs">
+                                    <span className="text-muted-foreground">{checkpoint.time}</span>
+                                    <Badge 
+                                      variant={sortMode === 'rank' && index < 3 ? "default" : "secondary"} 
+                                      className="text-xs px-2 py-0 min-w-[60px] text-center"
+                                    >
+                                      {elapsedFormatted}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </CardContent>
+                    )}
+                  </Card>
+                );
+              });
+            })()}
+          </div>
         </>
       )}
 
@@ -888,6 +583,17 @@ const IndianRiders: React.FC<IndianRidersProps> = ({ defaultView = 'timeline' })
               </DialogHeader>
 
               <div className="space-y-6 mt-6">
+                {/* Current Status */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Current Status</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-gray-600" />
+                      <span>Current Location: <strong>{selectedRider.current_checkpoint || selectedRider.last_checkpoint || 'Start'}</strong></span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
