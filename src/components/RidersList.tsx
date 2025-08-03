@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useGlobalData } from '../contexts';
+import { isLondonStartRider } from '../config/lel-route';
 
 const RidersList: React.FC = () => {
   const { 
@@ -103,6 +104,9 @@ const RidersList: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {rider.name}
+                    {isLondonStartRider(rider.rider_no) && (
+                      <sup className="text-xs text-gray-400 ml-1">+20km</sup>
+                    )}
                   </td>
                 </tr>
               ))}

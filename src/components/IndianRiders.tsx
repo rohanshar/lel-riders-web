@@ -18,7 +18,10 @@ import {
   getWaveStartTime,
   getControlsForRider,
   calculateElapsedTime,
-  formatElapsedTime
+  formatElapsedTime,
+  isLondonStartRider,
+  WRITTLE_START_CONTROLS,
+  LONDON_START_CONTROLS
 } from '../config/lel-route';
 import { useGlobalData } from '../contexts';
 
@@ -185,6 +188,16 @@ const IndianRiders: React.FC = () => {
   }, [trackingData]);
 
   // Helper functions
+  const formatRiderName = (name: string, riderNo: string) => {
+    const isLondonStart = isLondonStartRider(riderNo);
+    return (
+      <>
+        {name}
+        {isLondonStart && <sup className="text-xs text-muted-foreground ml-1">+20km</sup>}
+      </>
+    );
+  };
+
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -475,6 +488,30 @@ const IndianRiders: React.FC = () => {
                 });
 
                 const riderCount = ridersAtControl.length;
+                
+                // Check if we have both London and Writtle start riders at this control
+                const hasLondonRiders = ridersAtControl.some((r: Rider) => isLondonStartRider(r.rider_no));
+                const hasWrittleRiders = ridersAtControl.some((r: Rider) => !isLondonStartRider(r.rider_no));
+                
+                // Get distances for both start types
+                const writtleDistance = WRITTLE_START_CONTROLS.find(c => c.name === control.name)?.km || 0;
+                const londonDistance = LONDON_START_CONTROLS.find(c => c.name === control.name)?.km || 0;
+                
+                // Format the distance display
+                const getDistanceDisplay = () => {
+                  if (isStart) return '';
+                  
+                  if (hasLondonRiders && hasWrittleRiders) {
+                    // Show both distances
+                    return ` (${writtleDistance}/${londonDistance} km)`;
+                  } else if (hasLondonRiders) {
+                    // Only London riders
+                    return ` (${londonDistance} km)`;
+                  } else {
+                    // Only Writtle riders or no riders
+                    return ` (${writtleDistance} km)`;
+                  }
+                };
 
                 return (
                   <Card key={cardId} className="overflow-hidden">
@@ -485,7 +522,7 @@ const IndianRiders: React.FC = () => {
                       >
                         <div className="flex items-center gap-3">
                           <CardTitle className="text-base">
-                            {control.name} {!isStart && `(${control.km} km)`}
+                            {control.name}{getDistanceDisplay()}
                           </CardTitle>
                           <Badge variant="secondary" className="text-xs">
                             {riderCount} {riderCount === 1 ? 'rider' : 'riders'}
@@ -616,7 +653,7 @@ const IndianRiders: React.FC = () => {
                                       <span className="text-xs font-medium text-muted-foreground w-8">#{index + 1}</span>
                                     )}
                                     {getStatusIcon(rider.status)}
-                                    <span className="font-medium">{rider.name}</span>
+                                    <span className="font-medium">{formatRiderName(rider.name, rider.rider_no)}</span>
                                     <span className="text-xs text-muted-foreground">({rider.rider_no})</span>
                                   </div>
                                   <div className="flex items-center gap-4 text-xs">
@@ -650,7 +687,7 @@ const IndianRiders: React.FC = () => {
             <>
               <DialogHeader>
                 <DialogTitle className="text-2xl">
-                  {selectedRider.name}
+                  {formatRiderName(selectedRider.name, selectedRider.rider_no)}
                 </DialogTitle>
                 <DialogDescription>
                   <div className="flex items-center gap-4 mt-2">

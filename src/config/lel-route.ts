@@ -20,41 +20,58 @@ export interface RouteControl {
  */
 export const WRITTLE_START_CONTROLS: RouteControl[] = [
   { name: 'Writtle', km: 0, description: 'Start point for non-London riders' },
-  { name: 'Northstowe', km: 110, description: 'Merge point with London riders' },
-  { name: 'Boston', km: 217 },
-  { name: 'Louth', km: 307 },
-  { name: 'Hessle', km: 423 },
-  { name: 'Malton', km: 520 },
-  { name: 'Richmond', km: 616 },
-  { name: 'Brampton', km: 737 },
-  { name: 'Hawick', km: 841 },
-  { name: 'Moffat', km: 958 },
-  { name: 'Dalkeith', km: 1069 },
-  { name: 'Innerleithen', km: 1181 },
-  { name: 'Eskdalemiur', km: 1284 },
-  { name: 'Henham', km: 1540, description: 'Finish for Writtle start riders' }
+  { name: 'Northstowe', km: 90, description: 'Merge point with London riders' },
+  { name: 'Boston', km: 193 },
+  { name: 'Louth', km: 248 },
+  { name: 'Hessle', km: 305 },
+  { name: 'Malton', km: 373 },
+  { name: 'Richmond', km: 467 },
+  { name: 'Brampton', km: 581 },
+  { name: 'Hawick', km: 654 },
+  { name: 'Moffat', km: 725 },
+  { name: 'Dalkeith', km: 807 },
+  { name: 'Innerleithen', km: 846 },
+  { name: 'Eskdalemuir', km: 896 },
+  { name: 'Brampton', km: 953, description: 'Return' },
+  { name: 'Richmond', km: 1066, description: 'Return' },
+  { name: 'Malton', km: 1157, description: 'Return' },
+  { name: 'Hessle', km: 1225, description: 'Return' },
+  { name: 'Louth', km: 1284, description: 'Return' },
+  { name: 'Boston', km: 1340, description: 'Return' },
+  { name: 'Northstowe', km: 1443, description: 'Return' },
+  { name: 'Henham', km: 1494 },
+  { name: 'Writtle', km: 1537, description: 'Finish' }
 ];
 
 /**
  * Control points for LONDON START riders (L-series waves)
  * These riders do the full London-Edinburgh-London loop
+ * All distances are +20km compared to Writtle start
  */
 export const LONDON_START_CONTROLS: RouteControl[] = [
   { name: 'London', km: 0, description: 'Start point for L-series riders' },
-  { name: 'Writtle', km: 64, description: 'First control after London' },
-  { name: 'Northstowe', km: 174, description: 'Merge point with Writtle riders (64 + 110)' },
-  { name: 'Boston', km: 281 },
-  { name: 'Louth', km: 371 },
-  { name: 'Hessle', km: 487 },
-  { name: 'Malton', km: 584 },
-  { name: 'Richmond', km: 680 },
-  { name: 'Brampton', km: 801 },
-  { name: 'Hawick', km: 905 },
-  { name: 'Moffat', km: 1022 },
-  { name: 'Dalkeith', km: 1133 },
-  { name: 'Innerleithen', km: 1245 },
-  { name: 'Eskdalemiur', km: 1348 },
-  { name: 'London', km: 1604, description: 'Finish - back to London' }
+  { name: 'Writtle', km: 20, description: 'First control after London' },
+  { name: 'Northstowe', km: 110, description: 'Merge point with Writtle riders' },
+  { name: 'Boston', km: 213 },
+  { name: 'Louth', km: 268 },
+  { name: 'Hessle', km: 325 },
+  { name: 'Malton', km: 393 },
+  { name: 'Richmond', km: 487 },
+  { name: 'Brampton', km: 601 },
+  { name: 'Hawick', km: 674 },
+  { name: 'Moffat', km: 745 },
+  { name: 'Dalkeith', km: 827 },
+  { name: 'Innerleithen', km: 866 },
+  { name: 'Eskdalemuir', km: 916 },
+  { name: 'Brampton', km: 973, description: 'Return' },
+  { name: 'Richmond', km: 1086, description: 'Return' },
+  { name: 'Malton', km: 1177, description: 'Return' },
+  { name: 'Hessle', km: 1245, description: 'Return' },
+  { name: 'Louth', km: 1304, description: 'Return' },
+  { name: 'Boston', km: 1360, description: 'Return' },
+  { name: 'Northstowe', km: 1463, description: 'Return' },
+  { name: 'Henham', km: 1514 },
+  { name: 'London', km: 1557, description: 'Finish - back to London' }
 ];
 
 /**
@@ -132,7 +149,7 @@ export const getControlsForRider = (riderNo: string): RouteControl[] => {
  * @returns Total distance in kilometers
  */
 export const getTotalDistanceForRider = (riderNo: string): number => {
-  return isLondonStartRider(riderNo) ? 1604 : 1540;
+  return isLondonStartRider(riderNo) ? 1557 : 1537;
 };
 
 /**

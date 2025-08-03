@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useGlobalData } from '../contexts';
 import { trackWaveView } from '../hooks/useAnalytics';
+import { isLondonStartRider } from '../config/lel-route';
 
 const WaveDetail: React.FC = () => {
   const { wave } = useParams<{ wave: string }>();
@@ -111,6 +112,9 @@ const WaveDetail: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {rider.name}
+                    {isLondonStartRider(rider.rider_no) && (
+                      <sup className="text-xs text-gray-400 ml-1">+20km</sup>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -4,6 +4,7 @@ import L from 'leaflet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Clock, MapPin, Activity, Users, Navigation } from 'lucide-react';
+import { isLondonStartRider } from '../config/lel-route';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default markers in React Leaflet
@@ -309,7 +310,12 @@ const IndianRidersMap: React.FC<{ trackingData: TrackingData | null; routeData: 
                 >
                   <Popup>
                     <div className="p-2 min-w-[200px]">
-                      <h3 className="font-bold text-lg">{rider.name}</h3>
+                      <h3 className="font-bold text-lg">
+                        {rider.name}
+                        {isLondonStartRider(rider.rider_no) && (
+                          <sup className="text-xs text-gray-400 ml-1">+20km</sup>
+                        )}
+                      </h3>
                       <p className="text-sm text-gray-600 mb-2">{rider.rider_no}</p>
                       
                       <div className="space-y-1 text-sm">
