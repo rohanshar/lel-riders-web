@@ -198,6 +198,36 @@ const IndianRiders: React.FC = () => {
     );
   };
 
+  // Calculate actual distance based on rider's checkpoints
+  const calculateRiderDistance = (rider: Rider): number => {
+    if (!rider.checkpoints || rider.checkpoints.length === 0) return 0;
+    
+    // Get the appropriate controls for this rider
+    const controls = getControlsForRider(rider.rider_no);
+    
+    // Find the furthest checkpoint the rider has reached
+    let maxDistance = 0;
+    
+    rider.checkpoints.forEach(checkpoint => {
+      // Clean checkpoint name (remove directional suffixes)
+      const cleanName = checkpoint.name.replace(/\s+[NSEW]$/, '');
+      
+      // Find matching control
+      const control = controls.find(c => 
+        c.name === cleanName || 
+        c.name === checkpoint.name ||
+        checkpoint.name.includes(c.name) ||
+        (checkpoint.name === 'Start' && c.km === 0)
+      );
+      
+      if (control && control.km > maxDistance) {
+        maxDistance = control.km;
+      }
+    });
+    
+    return maxDistance;
+  };
+
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -255,7 +285,7 @@ const IndianRiders: React.FC = () => {
     riders = [...riders].sort((a: Rider, b: Rider) => {
       switch (sortBy) {
         case 'distance':
-          return b.distance_km - a.distance_km;
+          return calculateRiderDistance(b) - calculateRiderDistance(a);
         case 'name':
           return a.name.localeCompare(b.name);
         case 'rider_no':
@@ -502,8 +532,8 @@ const IndianRiders: React.FC = () => {
                   if (isStart) return '';
                   
                   if (hasLondonRiders && hasWrittleRiders) {
-                    // Show both distances
-                    return ` (${writtleDistance}/${londonDistance} km)`;
+                    // Show Writtle distance with note about London start
+                    return ` (${writtleDistance} km, +20 for London start)`;
                   } else if (hasLondonRiders) {
                     // Only London riders
                     return ` (${londonDistance} km)`;
@@ -713,7 +743,7 @@ const IndianRiders: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Distance</p>
-                    <p className="text-xl font-semibold">{selectedRider.distance_km} km</p>
+                    <p className="text-xl font-semibold">{calculateRiderDistance(selectedRider)} km</p>
                   </div>
                   {selectedRider.status === 'in_progress' && selectedRider.average_speed && selectedRider.average_speed > 0 && (
                     <>
@@ -737,12 +767,12 @@ const IndianRiders: React.FC = () => {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>Progress</span>
-                    <span>{((selectedRider.distance_km / trackingData.event.distance_km) * 100).toFixed(1)}%</span>
+                    <span>{((calculateRiderDistance(selectedRider) / getTotalDistanceForRider(selectedRider.rider_no)) * 100).toFixed(1)}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3">
                     <div
                       className="bg-primary h-3 rounded-full"
-                      style={{ width: `${Math.min((selectedRider.distance_km / trackingData.event.distance_km) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((calculateRiderDistance(selectedRider) / getTotalDistanceForRider(selectedRider.rider_no)) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
