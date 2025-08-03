@@ -1,9 +1,9 @@
 export const API_CONFIG = {
   BASE_URL: 'https://lel-riders-data-2025.s3.ap-south-1.amazonaws.com',
   endpoints: {
-    riders: '/riders.json',
-    indianRiders: '/indian-riders-tracking.json',
-    routes: '/routes.json',
+    riders: 'riders.json',
+    indianRiders: 'indian-riders-tracking.json',
+    routes: 'routes.json',
   },
   // Cache configuration
   cache: {
@@ -20,7 +20,7 @@ export const API_CONFIG = {
 
 // Helper function to construct full URLs
 export const getApiUrl = (endpoint: keyof typeof API_CONFIG.endpoints): string => {
-  return `${API_CONFIG.BASE_URL}${API_CONFIG.endpoints[endpoint]}`;
+  return `${API_CONFIG.BASE_URL}/${API_CONFIG.endpoints[endpoint]}`;
 };
 
 // API URLs for backward compatibility
