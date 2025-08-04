@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Users, Activity, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Activity, ChevronDown, ChevronUp, Cloud } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Rider, Checkpoint } from '../../types';
@@ -8,6 +8,7 @@ import type { ControlWeatherData } from '../../services/weatherService';
 import { CompactWeatherDisplay, ExtendedWeatherDisplay } from '../shared/CompactWeatherDisplay';
 import { calculateTimeAgo } from '../../utils/riderCalculations';
 import { RiderList } from './RiderList';
+import { WeatherModal } from '../shared/WeatherModal';
 
 interface ControlCardProps {
   control: Control;
@@ -54,6 +55,7 @@ export const ControlCard: React.FC<ControlCardProps> = ({
   allRiders,
   weather
 }) => {
+  const [showWeatherModal, setShowWeatherModal] = useState(false);
   const riderCount = ridersAtControl.length;
   const writtleDistance = control.km;
   
@@ -140,7 +142,7 @@ export const ControlCard: React.FC<ControlCardProps> = ({
         ${riderCount === 0 ? 'opacity-60' : ''}
         hover:shadow-md transition-all duration-200
       `}
-      onClick={() => riderCount > 0 && onToggleExpansion()}
+      onClick={() => onToggleExpansion()}
       >
         <CardHeader className="p-3 sm:pb-3">
           <div className="flex items-center justify-between">
@@ -149,7 +151,6 @@ export const ControlCard: React.FC<ControlCardProps> = ({
                 <CardTitle className="text-base sm:text-lg font-semibold truncate">
                   {control.name}
                 </CardTitle>
-                {weather && <CompactWeatherDisplay weather={weather} />}
                 {!isStart && (
                   <span className="hidden sm:inline text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                     +20km for London start
@@ -173,71 +174,108 @@ export const ControlCard: React.FC<ControlCardProps> = ({
               </div>
             </div>
             <div className="flex items-center ml-2">
-              {riderCount > 0 && (
-                isExpanded ? <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" /> : <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" />
-              )}
+              {isExpanded ? <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" /> : <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" />}
             </div>
           </div>
           
-          {/* Latest arrivals preview */}
-          {!isExpanded && riderCount > 0 && latestArrivals.length > 0 && (
-            <div className="mt-2 text-[10px] sm:text-xs text-muted-foreground">
-              <div className="flex items-center gap-1 sm:gap-2">
-                <Activity className="h-3 w-3" />
-                <span>Latest arrivals:</span>
-              </div>
-              <div className="ml-3 sm:ml-5 mt-1 space-y-0.5">
-                {latestArrivals.map(({ rider, checkpoint }) => {
-                  const timeAgo = calculateTimeAgo(checkpoint.time);
-                  return (
-                    <div key={rider.rider_no} className="flex flex-wrap items-center gap-1 sm:gap-2">
-                      <span className="font-medium">{rider.name.split(' ')[0]}</span>
-                      <span className="text-muted-foreground">
-                        • {checkpoint.time}
-                        {timeAgo && <span className="text-[9px] sm:text-xs ml-1">({timeAgo})</span>}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+          {/* Actions and preview when collapsed */}
+          {!isExpanded && (
+            <div className="mt-2 space-y-2">
+              {/* Weather button */}
+              {weather && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowWeatherModal(true);
+                  }}
+                  className="flex items-center gap-2 w-full justify-start h-7 px-2 text-xs hover:bg-primary/10"
+                >
+                  <Cloud className="h-3 w-3" />
+                  <span>View weather</span>
+                </Button>
+              )}
+              
+              {/* Latest arrivals preview */}
+              {riderCount > 0 && latestArrivals.length > 0 && (
+                <div className="text-[10px] sm:text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <Activity className="h-3 w-3" />
+                    <span>Latest arrivals:</span>
+                  </div>
+                  <div className="ml-3 sm:ml-5 mt-1 space-y-0.5">
+                    {latestArrivals.map(({ rider, checkpoint }) => {
+                      const timeAgo = calculateTimeAgo(checkpoint.time);
+                      return (
+                        <div key={rider.rider_no} className="flex flex-wrap items-center gap-1 sm:gap-2">
+                          <span className="font-medium">{rider.name.split(' ')[0]}</span>
+                          <span className="text-muted-foreground">
+                            • {checkpoint.time}
+                            {timeAgo && <span className="text-[9px] sm:text-xs ml-1">({timeAgo})</span>}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardHeader>
         
-        {isExpanded && riderCount > 0 && (
+        {isExpanded && (
           <CardContent className="pt-0 pb-2 sm:pb-3 px-2 sm:px-6">
             {weather && (
               <div className="mb-3">
-                <ExtendedWeatherDisplay weather={weather} />
+                <ExtendedWeatherDisplay weather={weather} control={control} />
               </div>
             )}
             
-            <div className="mb-2 sm:mb-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleShowAll();
-                }}
-                className="text-xs h-7 w-full sm:w-auto"
-              >
-                {showAllRiders ? 'Show only at this control' : 'Show all riders'}
-              </Button>
-            </div>
-            
-            <RiderList
-              riders={showAllRiders ? allRiders : ridersAtControl}
-              control={control}
-              searchTerm={searchTerm}
-              onSearch={onSearch}
-              selectedRiderId={selectedRiderId}
-              onSelectRider={onSelectRider}
-              showAllRiders={showAllRiders}
-            />
+            {riderCount > 0 ? (
+              <>
+                <div className="mb-2 sm:mb-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleShowAll();
+                    }}
+                    className="text-xs h-7 w-full sm:w-auto"
+                  >
+                    {showAllRiders ? 'Show only at this control' : 'Show all riders'}
+                  </Button>
+                </div>
+                
+                <RiderList
+                  riders={showAllRiders ? allRiders : ridersAtControl}
+                  control={control}
+                  searchTerm={searchTerm}
+                  onSearch={onSearch}
+                  selectedRiderId={selectedRiderId}
+                  onSelectRider={onSelectRider}
+                  showAllRiders={showAllRiders}
+                />
+              </>
+            ) : (
+              <div className="text-center py-4 text-sm text-muted-foreground">
+                No riders have reached this control yet
+              </div>
+            )}
           </CardContent>
         )}
       </Card>
+      
+      {/* Weather Modal */}
+      {weather && (
+        <WeatherModal
+          isOpen={showWeatherModal}
+          onClose={() => setShowWeatherModal(false)}
+          weather={weather}
+          control={control}
+        />
+      )}
     </div>
   );
 };

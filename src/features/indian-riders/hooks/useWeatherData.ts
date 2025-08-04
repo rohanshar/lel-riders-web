@@ -34,9 +34,6 @@ export const useWeatherData = () => {
     // Clean control name (remove direction suffixes)
     const cleanName = controlName.replace(/\s+[NSEW]$/, '');
     
-    console.log(`[getWeatherForControl] Looking for weather for: "${controlName}" (cleaned: "${cleanName}")`);
-    console.log('[getWeatherForControl] Available weather locations:', weatherData.weather.map(w => w.control_name));
-    
     const found = weatherData.weather.find(
       weather => 
         weather.control_name === cleanName ||
@@ -44,8 +41,6 @@ export const useWeatherData = () => {
         cleanName.includes(weather.control_name) ||
         weather.control_name.includes(cleanName)
     );
-    
-    console.log(`[getWeatherForControl] Found weather:`, found);
     
     return found || null;
   };

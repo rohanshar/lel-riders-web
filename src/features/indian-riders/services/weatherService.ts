@@ -1,5 +1,21 @@
 import { API_CONFIG } from '@/config/api';
 
+export interface HourlyForecast {
+  time: string; // ISO format timestamp
+  time_unix: number; // Unix timestamp
+  is_historical: boolean; // true for past hours, false for future
+  hours_from_now: number | null; // null for historical, number for future
+  temperature: number;
+  feels_like: number;
+  precipitation_probability: number;
+  precipitation: number;
+  wind_speed: number;
+  wind_direction: number;
+  weather_code: number;
+  condition: string;
+  description: string;
+}
+
 export interface ControlWeatherData {
   control_id: string;
   control_name: string;
@@ -26,6 +42,17 @@ export interface ControlWeatherData {
     max_temp: number;
     min_temp: number;
   };
+  hourly_forecast?: HourlyForecast[];
+  metadata?: {
+    description: string;
+    current_utc_time: string;
+    current_local_time: string;
+    total_hours: number;
+    historical_hours: number;
+    forecast_hours: number;
+    timezone: string;
+    note: string;
+  };
 }
 
 export interface WeatherResponse {
@@ -46,7 +73,7 @@ export interface WeatherResponse {
 class WeatherService {
   private weatherCache: WeatherResponse | null = null;
   private lastFetchTime: number = 0;
-  private readonly CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   async fetchWeatherData(): Promise<WeatherResponse> {
     const now = Date.now();
@@ -57,13 +84,38 @@ class WeatherService {
     }
 
     try {
-      const response = await fetch(`${API_CONFIG.BASE_URL}/control-weather.json`);
+      // Add cache-busting parameter
+      const cacheBuster = `?t=${Date.now()}`;
+      const url = `${API_CONFIG.BASE_URL}/control-weather.json${cacheBuster}`;
+      
+      console.log('Fetching weather from:', url);
+      
+      const response = await fetch(url, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
       if (!response.ok) {
         throw new Error(`Failed to fetch weather data: ${response.statusText}`);
       }
 
       const data = await response.json();
-      console.log('[WeatherService] Fetched weather data:', data);
+      
+      // Log sample data to verify what we're getting
+      if (data.weather && data.weather.length > 0 && data.weather[0].hourly_forecast) {
+        const sample = data.weather[0];
+        console.log('Weather data for:', sample.control_name);
+        console.log('Historical hours:', sample.hourly_forecast.filter((h: HourlyForecast) => h.is_historical).length);
+        console.log('Future hours:', sample.hourly_forecast.filter((h: HourlyForecast) => !h.is_historical).length);
+        console.log('First 3 hours:', sample.hourly_forecast.slice(0, 3).map((h: HourlyForecast) => ({
+          time: h.time,
+          is_historical: h.is_historical
+        })));
+      }
+      
       this.weatherCache = data;
       this.lastFetchTime = now;
       return data;

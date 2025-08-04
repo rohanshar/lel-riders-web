@@ -1,9 +1,13 @@
-import React from 'react';
-import { Cloud, CloudRain, Sun, Wind, Droplets, Thermometer, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Cloud, CloudRain, Sun, Wind, Droplets, Thermometer, AlertTriangle, ChevronDown, ChevronUp, Navigation } from 'lucide-react';
 import type { ControlWeatherData } from '../../services/weatherService';
+import type { Control } from '../../types/weather';
+import { HourlyForecastDisplay } from './HourlyForecastDisplay';
+import { getWindType, getWindDirectionName } from '../../utils/windCalculations';
 
 interface CompactWeatherDisplayProps {
   weather: ControlWeatherData;
+  control?: Control;
   className?: string;
 }
 
@@ -29,16 +33,18 @@ const getWindDirection = (degrees: number): string => {
 
 export const CompactWeatherDisplay: React.FC<CompactWeatherDisplayProps> = ({ 
   weather, 
+  control,
   className = '' 
 }) => {
-  console.log('[CompactWeatherDisplay] Weather data:', weather);
-  
   const isRainy = weather.current.condition.toLowerCase().includes('rain');
   const isHighWind = weather.current.wind_speed > 25; // km/h
   const isCold = weather.current.temperature < 10;
   const isHot = weather.current.temperature > 25;
   
   const hasWarning = isRainy || isHighWind || isCold || isHot;
+  
+  // Calculate wind type if control info is available
+  const windInfo = control ? getWindType(weather.current.wind_direction, control.leg) : null;
 
   return (
     <div className={`flex items-center gap-2 text-xs ${className}`}>
@@ -52,13 +58,21 @@ export const CompactWeatherDisplay: React.FC<CompactWeatherDisplayProps> = ({
         </span>
       </div>
 
-      {/* Wind info - important for cyclists */}
+      {/* Wind info with headwind/tailwind indicator */}
       <div className={`flex items-center gap-1 ${
         isHighWind ? 'text-orange-600 font-medium' : 'text-muted-foreground'
       }`}>
         <Wind className="h-3 w-3" />
-        <span>{Math.round(weather.current.wind_speed)}km/h</span>
-        <span className="text-[10px]">{getWindDirection(weather.current.wind_direction)}</span>
+        <span>{Math.round(weather.current.wind_speed)}</span>
+        {windInfo && (
+          <span className={`text-[10px] font-medium ${
+            windInfo.type === 'headwind' ? 'text-red-600' : 
+            windInfo.type === 'tailwind' ? 'text-green-600' : 
+            'text-gray-600'
+          }`}>
+            {windInfo.type === 'headwind' ? '↓' : windInfo.type === 'tailwind' ? '↑' : '→'}
+          </span>
+        )}
       </div>
 
       {/* Rain probability if > 30% */}
@@ -79,12 +93,16 @@ export const CompactWeatherDisplay: React.FC<CompactWeatherDisplayProps> = ({
 
 // Extended weather display for expanded view
 export const ExtendedWeatherDisplay: React.FC<CompactWeatherDisplayProps> = ({ 
-  weather 
+  weather,
+  control 
 }) => {
   const isRainy = weather.current.condition.toLowerCase().includes('rain');
   const isHighWind = weather.current.wind_speed > 25;
   const isCold = weather.current.temperature < 10;
   const isHot = weather.current.temperature > 25;
+  
+  const windInfo = control ? getWindType(weather.current.wind_direction, control.leg) : null;
+  const windDirName = getWindDirectionName(weather.current.wind_direction);
 
   return (
     <div className="p-3 bg-blue-50 rounded-lg space-y-3">
@@ -115,9 +133,19 @@ export const ExtendedWeatherDisplay: React.FC<CompactWeatherDisplayProps> = ({
           <Wind className={`h-4 w-4 ${isHighWind ? 'text-orange-600' : 'text-gray-500'}`} />
           <div>
             <p className={`font-medium ${isHighWind ? 'text-orange-600' : ''}`}>
-              Wind: {Math.round(weather.current.wind_speed)} km/h {getWindDirection(weather.current.wind_direction)}
+              Wind: {Math.round(weather.current.wind_speed)} km/h {windDirName}
             </p>
-            {isHighWind && <p className="text-orange-600">Strong headwind!</p>}
+            {windInfo && (
+              <p className={`text-xs ${
+                windInfo.type === 'headwind' ? 'text-red-600' : 
+                windInfo.type === 'tailwind' ? 'text-green-600' : 
+                'text-gray-600'
+              } font-medium`}>
+                {windInfo.type === 'headwind' ? '↓ Headwind' : 
+                 windInfo.type === 'tailwind' ? '↑ Tailwind' : 
+                 '→ Crosswind'} ({Math.round(windInfo.component)}%)
+              </p>
+            )}
           </div>
         </div>
 
@@ -173,6 +201,13 @@ export const ExtendedWeatherDisplay: React.FC<CompactWeatherDisplayProps> = ({
           </p>
         )}
       </div>
+
+      {/* Hourly forecast */}
+      {weather.hourly_forecast && weather.hourly_forecast.length > 0 && (
+        <div className="mt-4 pt-4 border-t">
+          <HourlyForecastDisplay hourlyData={weather.hourly_forecast} />
+        </div>
+      )}
     </div>
   );
 };
