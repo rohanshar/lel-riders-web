@@ -73,6 +73,7 @@ const IndianRiders: React.FC = () => {
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const [timeSinceUpdate, setTimeSinceUpdate] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showAllRiders, setShowAllRiders] = useState<Record<string, boolean>>({});
 
   // Map GlobalData to component's expected format
   const trackingData = useMemo(() => {
@@ -714,6 +715,17 @@ const IndianRiders: React.FC = () => {
 
                 const riderCount = ridersAtControl.length;
                 
+                // Count riders actually at this control (not progressed beyond)
+                const currentRiderCount = ridersAtControl.filter((rider: Rider) => {
+                  const currentControlIndex = rider.checkpoints.findIndex(cp => {
+                    if (isStart) {
+                      return cp.name === 'Start' || cp.name === 'Writtle' || cp.name === 'London';
+                    }
+                    return cp.name === control.name || cp.name.includes(control.name);
+                  });
+                  return currentControlIndex >= 0 && currentControlIndex === rider.checkpoints.length - 1;
+                }).length;
+                
                 // Check if we have both London and Writtle start riders at this control
                 const hasLondonRiders = ridersAtControl.some((r: Rider) => isLondonStartRider(r.rider_no));
                 const hasWrittleRiders = ridersAtControl.some((r: Rider) => !isLondonStartRider(r.rider_no));
@@ -770,7 +782,13 @@ const IndianRiders: React.FC = () => {
                             <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <Users className="h-3 w-3" />
-                                {riderCount} {riderCount === 1 ? 'rider' : 'riders'}
+                                {currentRiderCount > 0 && currentRiderCount !== riderCount ? (
+                                  <span>
+                                    {currentRiderCount} here • {riderCount} total
+                                  </span>
+                                ) : (
+                                  <span>{riderCount} {riderCount === 1 ? 'rider' : 'riders'}</span>
+                                )}
                               </span>
                               <span className="hidden sm:inline">•</span>
                               <span>{control.leg} Leg</span>
@@ -866,7 +884,21 @@ const IndianRiders: React.FC = () => {
                     </CardHeader>
                     {isExpanded && riderCount > 0 && (
                       <CardContent className="pt-0 pb-3">
-                        <div className="mb-3 flex justify-end">
+                        <div className="mb-3 flex justify-between items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowAllRiders(prev => ({
+                                ...prev,
+                                [cardId]: !prev[cardId]
+                              }));
+                            }}
+                            className="text-xs"
+                          >
+                            {showAllRiders[cardId] ? 'Show Current Only' : 'Show All Riders'}
+                          </Button>
                           <Button 
                             variant="outline" 
                             size="sm"
@@ -956,18 +988,23 @@ const IndianRiders: React.FC = () => {
                               };
                             }).filter((item: RiderWithElapsedTime) => item.checkpoint);
                             
+                            // Filter based on view mode
+                            const displayRiders = showAllRiders[cardId] 
+                              ? ridersWithElapsedTime 
+                              : ridersWithElapsedTime.filter((item: RiderWithElapsedTime) => !item.hasProgressedBeyond);
+                            
                             // Sort based on selected option
                             const sortMode = cardSortBy[cardId] || 'rank';
                             if (sortMode === 'arrival') {
                               // Sort by arrival time (latest first)
-                              ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => {
+                              displayRiders.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => {
                                 const aTime = a.checkpoint?.time || '';
                                 const bTime = b.checkpoint?.time || '';
                                 return bTime.localeCompare(aTime);
                               });
                             } else {
                               // Sort by elapsed time (fastest first), filtering out invalid times
-                              ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => {
+                              displayRiders.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => {
                                 // Put riders with valid times first
                                 if (a.elapsedMinutes <= 0 && b.elapsedMinutes > 0) return 1;
                                 if (a.elapsedMinutes > 0 && b.elapsedMinutes <= 0) return -1;
@@ -975,7 +1012,17 @@ const IndianRiders: React.FC = () => {
                               });
                             }
                             
-                            return ridersWithElapsedTime.map(({ rider, checkpoint, elapsedFormatted, elapsedMinutes, hasProgressedBeyond, averageSpeed, isDNF }: RiderWithElapsedTime, index: number) => {
+                            // Add a summary if riders are hidden
+                            const hiddenCount = ridersWithElapsedTime.length - displayRiders.length;
+                            
+                            return (
+                              <>
+                                {!showAllRiders[cardId] && hiddenCount > 0 && (
+                                  <div className="text-center py-2 text-xs text-muted-foreground border-b mb-2">
+                                    <span className="font-medium">{hiddenCount} riders</span> have moved to later controls
+                                  </div>
+                                )}
+                                {displayRiders.map(({ rider, checkpoint, elapsedFormatted, elapsedMinutes, hasProgressedBeyond, averageSpeed, isDNF }: RiderWithElapsedTime, index: number) => {
                               if (!checkpoint) return null;
 
                               // Determine background color based on status
@@ -1044,7 +1091,9 @@ const IndianRiders: React.FC = () => {
                                   </div>
                                 </div>
                               );
-                            });
+                            })}
+                              </>
+                            );
                           })()}
                         </div>
                       </CardContent>

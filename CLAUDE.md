@@ -28,7 +28,7 @@ The event has TWO start points handled by `src/config/lel-route.ts`:
 Routes merge at Northstowe. The system provides:
 - `isLondonStartRider(riderId)` - Determines start location by wave
 - `getControlsForRider(riderId)` - Returns correct control sequence
-- `getTotalDistanceForRider(riderId)` - Returns correct total distance (1557km or 1537km)
+- `getTotalDistanceForRider(riderId)` - Returns correct total distance
 
 ### State Management Architecture
 
