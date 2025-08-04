@@ -169,7 +169,28 @@ const IndianRiders: React.FC = () => {
             }
           }
 
-          const minutesAgo = Math.floor((now.getTime() - checkpointDate.getTime()) / (1000 * 60));
+          // The checkpoint times are parsed as if they're in local time, but they're actually UK time
+          // We need to adjust for the timezone difference
+          // During BST (British Summer Time), UK is UTC+1
+          // Get current UK time
+          const ukTimeString = now.toLocaleString('en-US', { 
+            timeZone: 'Europe/London',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          });
+          
+          // Parse UK time string to get actual UK time
+          const [datePart, timePart] = ukTimeString.split(', ');
+          const [month, day, year] = datePart.split('/');
+          const [hours, minutes, seconds] = timePart.split(':');
+          const ukNow = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes), parseInt(seconds));
+          
+          const minutesAgo = Math.floor((ukNow.getTime() - checkpointDate.getTime()) / (1000 * 60));
           
           // Only include updates from the last 24 hours
           if (minutesAgo >= 0 && minutesAgo < 1440) {
