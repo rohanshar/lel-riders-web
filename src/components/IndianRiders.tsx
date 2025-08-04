@@ -330,24 +330,63 @@ const IndianRiders: React.FC = () => {
   // Calculate time ago from a checkpoint time (e.g., "Sunday 11:56")
   const calculateTimeAgo = (checkpointTime: string): string => {
     try {
-      const timeParts = checkpointTime.split(' ');
-      const timeOnly = timeParts[timeParts.length - 1];
-      const [hours, minutes] = timeOnly.split(':').map(Number);
+      if (!checkpointTime) return '';
       
-      // Get current time in UK timezone
-      const now = new Date();
-      const ukNow = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/London' }));
-      const currentHours = ukNow.getHours();
-      const currentMinutes = ukNow.getMinutes();
+      // Parse checkpoint time
+      let checkpointDate: Date;
       
-      // Calculate minutes since checkpoint (assuming same day for simplicity)
-      let minutesAgo = (currentHours * 60 + currentMinutes) - (hours * 60 + minutes);
-      
-      // Handle day boundary (if checkpoint was yesterday)
-      if (minutesAgo < 0) {
-        minutesAgo += 24 * 60; // Add 24 hours
+      if (checkpointTime.includes('/')) {
+        // Format: "3/8 19:32"
+        const [date, time] = checkpointTime.split(' ');
+        const [day, month] = date.split('/');
+        const [hours, minutes] = time.split(':');
+        checkpointDate = new Date(2025, parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes));
+      } else {
+        // Format: "Sunday 08:46" or "Monday 02:29"
+        const parts = checkpointTime.split(' ');
+        const dayName = parts[0];
+        const timeStr = parts[parts.length - 1];
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        
+        // Event starts on Sunday August 3, 2025
+        const eventStartDate = new Date('2025-08-03');
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const eventDayIndex = eventStartDate.getDay();
+        const checkpointDayIndex = dayNames.indexOf(dayName);
+        
+        if (checkpointDayIndex >= 0) {
+          let dayOffset = checkpointDayIndex - eventDayIndex;
+          if (dayOffset < 0) dayOffset += 7;
+          
+          checkpointDate = new Date(eventStartDate);
+          checkpointDate.setDate(checkpointDate.getDate() + dayOffset);
+          checkpointDate.setHours(hours, minutes, 0, 0);
+        } else {
+          return '';
+        }
       }
       
+      // Get current UK time
+      const now = new Date();
+      const ukTimeString = now.toLocaleString('en-US', { 
+        timeZone: 'Europe/London',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      
+      const [datePart, timePart] = ukTimeString.split(', ');
+      const [month, day, year] = datePart.split('/');
+      const [hour, minute] = timePart.split(':');
+      const ukNow = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+      
+      const minutesAgo = Math.floor((ukNow.getTime() - checkpointDate.getTime()) / (1000 * 60));
+      
+      if (minutesAgo < 0) return ''; // Future time
       if (minutesAgo < 60) {
         return `${minutesAgo}m ago`;
       } else if (minutesAgo < 24 * 60) {
@@ -739,12 +778,18 @@ const IndianRiders: React.FC = () => {
                               <span>Latest arrivals:</span>
                             </div>
                             <div className="ml-5 mt-1 space-y-0.5">
-                              {sortedByArrival.map(({ rider, checkpoint }: RiderWithTimestamp) => (
-                                <div key={rider.rider_no} className="flex items-center gap-2">
-                                  <span>{rider.name.split(' ')[0]}</span>
-                                  <span className="text-muted-foreground">• {checkpoint.time}</span>
-                                </div>
-                              ))}
+                              {sortedByArrival.map(({ rider, checkpoint }: RiderWithTimestamp) => {
+                                const timeAgo = calculateTimeAgo(checkpoint.time);
+                                return (
+                                  <div key={rider.rider_no} className="flex items-center gap-2">
+                                    <span>{rider.name.split(' ')[0]}</span>
+                                    <span className="text-muted-foreground">
+                                      • {checkpoint.time}
+                                      {timeAgo && <span className="text-xs ml-1">({timeAgo})</span>}
+                                    </span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         );
