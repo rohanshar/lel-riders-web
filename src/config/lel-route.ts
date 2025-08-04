@@ -76,9 +76,7 @@ export const LONDON_START_CONTROLS: RouteControl[] = [
 
 /**
  * Wave start times for different rider groups
- * Writtle start waves: 
- *   - A-AG: Base time 4:00 AM, then 15-minute increments
- *   - AI onwards: Base time 4:00 PM, then 15-minute increments
+ * Writtle start waves: Base time 4:00 AM, then 15-minute increments continuously
  * London start waves: Base time 5:00 AM, then 15-minute increments
  */
 export const WAVE_START_TIMES: { [key: string]: string } = {
@@ -117,24 +115,24 @@ export const WAVE_START_TIMES: { [key: string]: string } = {
   'AF': '11:45',
   'AG': '12:00',
   'AH': '12:15',
-  'AI': '16:00',  // 4:00 PM start
-  'AJ': '16:15',
-  'AK': '16:30',
-  'AL': '16:45',
-  'AM': '17:00',
-  'AN': '17:15',
-  'AO': '17:30',
-  'AP': '17:45',
-  'AQ': '18:00',
-  'AR': '18:15',
-  'AS': '18:30',
-  'AT': '18:45',
-  'AU': '19:00',
-  'AV': '19:15',
-  'AW': '19:30',
-  'AX': '19:45',
-  'AY': '20:00',
-  'AZ': '20:15',
+  'AI': '12:30',
+  'AJ': '12:45',
+  'AK': '13:00',
+  'AL': '13:15',
+  'AM': '13:30',
+  'AN': '13:45',
+  'AO': '14:00',
+  'AP': '14:15',
+  'AQ': '14:30',
+  'AR': '14:45',
+  'AS': '15:00',
+  'AT': '15:15',
+  'AU': '15:30',
+  'AV': '15:45',
+  'AW': '16:00',
+  'AX': '16:15',
+  'AY': '16:30',
+  'AZ': '16:45',
   
   // London start waves (start at 5:00 AM)
   'LA': '05:00',

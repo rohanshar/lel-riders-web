@@ -82,8 +82,8 @@ export const shouldBeMarkedDNF = (rider: Rider): boolean => {
   // Get hours since last checkpoint
   const hoursSinceLastCheckpoint = getHoursSinceCheckpoint(lastCheckpoint.time);
   
-  // Only mark as DNF if they've been at the same control for 16+ hours
-  return hoursSinceLastCheckpoint >= 16;
+  // Only mark as DNF if they've been at the same control for 24+ hours
+  return hoursSinceLastCheckpoint >= 24;
 };
 
 export const getHoursSinceCheckpoint = (checkpointTime: string): number => {

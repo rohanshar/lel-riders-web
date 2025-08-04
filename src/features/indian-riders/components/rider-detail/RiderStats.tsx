@@ -120,7 +120,7 @@ export const RiderStats: React.FC<RiderStatsProps> = ({ rider, allRiders }) => {
                 This rider has been marked as DNF because their last checkpoint update was <strong>{lastCheckpointTime}</strong> at <strong>{rider.last_checkpoint || 'Unknown'}</strong>.
               </p>
               <p className="text-sm text-red-800 mb-2">
-                Riders are automatically marked as DNF when no checkpoint update is received for more than 16 hours.
+                Riders are automatically marked as DNF when no checkpoint update is received for more than 24 hours.
               </p>
               <p className="text-sm text-green-700 font-medium">
                 ✓ The rider will be automatically marked as active again when they check in at the next control.
