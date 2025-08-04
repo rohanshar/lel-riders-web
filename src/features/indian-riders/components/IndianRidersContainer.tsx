@@ -66,18 +66,21 @@ export const IndianRidersContainer: React.FC = () => {
       const minutes = Math.floor(seconds / 60);
       
       if (seconds < 60) {
-        setTimeSinceUpdate(`${seconds}s ago`);
+        setTimeSinceUpdate(`just now`);
       } else if (minutes < 60) {
-        const secs = seconds % 60;
         if (minutes === 1) {
-          setTimeSinceUpdate(`1 min ${secs}s ago`);
+          setTimeSinceUpdate(`1 min ago`);
         } else {
-          setTimeSinceUpdate(`${minutes} mins ${secs}s ago`);
+          setTimeSinceUpdate(`${minutes} mins ago`);
         }
       } else if (minutes < 24 * 60) {
         const hours = Math.floor(minutes / 60);
         const mins = minutes % 60;
-        setTimeSinceUpdate(`${hours}h ${mins}m ago`);
+        if (mins === 0) {
+          setTimeSinceUpdate(`${hours}h ago`);
+        } else {
+          setTimeSinceUpdate(`${hours}h ${mins}m ago`);
+        }
       } else {
         const days = Math.floor(minutes / (24 * 60));
         setTimeSinceUpdate(`${days} day${days === 1 ? '' : 's'} ago`);
