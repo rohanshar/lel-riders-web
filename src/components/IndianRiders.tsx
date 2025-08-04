@@ -264,18 +264,7 @@ const IndianRiders: React.FC = () => {
     });
   };
 
-  // Calculate statistics
-  const statistics = useMemo(() => {
-    if (!trackingData) return { total: 0, inProgress: 0, finished: 0, dnf: 0, notStarted: 0 };
-    
-    const riders = trackingData.riders || [];
-    const inProgress = riders.filter((r: Rider) => r.status === 'in_progress').length;
-    const finished = riders.filter((r: Rider) => r.status === 'finished').length;
-    const dnf = riders.filter((r: Rider) => r.status === 'dnf').length;
-    const notStarted = riders.filter((r: Rider) => r.status === 'not_started').length;
-    
-    return { total: riders.length, inProgress, finished, dnf, notStarted };
-  }, [trackingData]);
+  // We'll calculate statistics later after all functions are defined
 
   // Helper functions
   const formatRiderName = (name: string, riderNo: string) => {
@@ -402,7 +391,37 @@ const IndianRiders: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  // Check if a rider should be marked as DNF (12+ hours without update at their last seen control)
+  const shouldBeMarkedDNF = (rider: Rider): boolean => {
+    if (rider.status === 'dnf' || rider.status === 'finished') return rider.status === 'dnf';
+    if (rider.checkpoints.length === 0) return false;
+    
+    const lastCheckpoint = rider.checkpoints[rider.checkpoints.length - 1];
+    if (!lastCheckpoint.time) return false;
+    
+    // Parse the last checkpoint time
+    const timeAgo = calculateTimeAgo(lastCheckpoint.time);
+    if (!timeAgo) return false;
+    
+    // Extract hours from time ago string
+    const hoursMatch = timeAgo.match(/(\d+)h/);
+    const daysMatch = timeAgo.match(/(\d+)\s*day/);
+    
+    let totalHours = 0;
+    if (hoursMatch) totalHours += parseInt(hoursMatch[1]);
+    if (daysMatch) totalHours += parseInt(daysMatch[1]) * 24;
+    
+    // Only mark as DNF if they've been at the same control for 12+ hours
+    // This means they haven't progressed to any subsequent control
+    return totalHours >= 12;
+  };
+
+  const getStatusBadge = (status: string, rider?: Rider) => {
+    // Check if rider should be marked as DNF due to 12+ hours without update
+    if (rider && shouldBeMarkedDNF(rider)) {
+      return <Badge className="bg-red-500">DNF</Badge>;
+    }
+    
     switch (status) {
       case 'in_progress':
         return <Badge className="bg-blue-500">In Progress</Badge>;
@@ -417,7 +436,19 @@ const IndianRiders: React.FC = () => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string, rider?: Rider, averageSpeed?: number) => {
+    // Check if rider should be marked as DNF
+    if (rider && shouldBeMarkedDNF(rider)) {
+      return <XCircle className="h-4 w-4 text-red-500" />;
+    }
+    
+    // For in-progress riders, check speed
+    if (status === 'in_progress' && averageSpeed !== undefined) {
+      if (averageSpeed < 15) {
+        return <Activity className="h-4 w-4 text-yellow-500" />; // Warning - slow speed
+      }
+    }
+    
     switch (status) {
       case 'in_progress':
         return <Activity className="h-4 w-4 text-blue-500" />;
@@ -431,6 +462,19 @@ const IndianRiders: React.FC = () => {
         return null;
     }
   };
+
+  // Calculate statistics
+  const statistics = useMemo(() => {
+    if (!trackingData) return { total: 0, inProgress: 0, finished: 0, dnf: 0, notStarted: 0 };
+    
+    const riders = trackingData.riders || [];
+    const inProgress = riders.filter((r: Rider) => r.status === 'in_progress' && !shouldBeMarkedDNF(r)).length;
+    const finished = riders.filter((r: Rider) => r.status === 'finished').length;
+    const dnf = riders.filter((r: Rider) => r.status === 'dnf' || shouldBeMarkedDNF(r)).length;
+    const notStarted = riders.filter((r: Rider) => r.status === 'not_started').length;
+    
+    return { total: riders.length, inProgress, finished, dnf, notStarted };
+  }, [trackingData]);
 
   // Filter and sort riders
   const filteredRiders = useMemo(() => {
@@ -847,6 +891,8 @@ const IndianRiders: React.FC = () => {
                               elapsedMinutes: number;
                               elapsedFormatted: string;
                               hasProgressedBeyond?: boolean;
+                              averageSpeed?: number;
+                              isDNF?: boolean;
                             }
                             
                             const ridersWithElapsedTime = ridersAtControl.map((rider: Rider): RiderWithElapsedTime => {
@@ -873,6 +919,7 @@ const IndianRiders: React.FC = () => {
                               // Calculate elapsed time directly
                               let elapsedMinutes = 0;
                               let elapsedFormatted = '';
+                              let averageSpeed = 0;
                               
                               if (checkpoint) {
                                 // For start checkpoint, elapsed time is 0
@@ -885,16 +932,27 @@ const IndianRiders: React.FC = () => {
                                   if (elapsed !== null && elapsed > 0) {
                                     elapsedMinutes = elapsed;
                                     elapsedFormatted = formatElapsedTime(elapsed);
+                                    
+                                    // Calculate average speed
+                                    const distance = calculateRiderDistance(rider);
+                                    if (distance > 0 && elapsedMinutes > 0) {
+                                      averageSpeed = (distance / elapsedMinutes) * 60; // km/h
+                                    }
                                   }
                                 }
                               }
+                              
+                              // Check if rider is DNF
+                              const isDNF = shouldBeMarkedDNF(rider);
                               
                               return {
                                 rider,
                                 checkpoint,
                                 elapsedMinutes,
                                 elapsedFormatted,
-                                hasProgressedBeyond
+                                hasProgressedBeyond,
+                                averageSpeed,
+                                isDNF
                               };
                             }).filter((item: RiderWithElapsedTime) => item.checkpoint);
                             
@@ -917,28 +975,41 @@ const IndianRiders: React.FC = () => {
                               });
                             }
                             
-                            return ridersWithElapsedTime.map(({ rider, checkpoint, elapsedFormatted, elapsedMinutes, hasProgressedBeyond }: RiderWithElapsedTime, index: number) => {
+                            return ridersWithElapsedTime.map(({ rider, checkpoint, elapsedFormatted, elapsedMinutes, hasProgressedBeyond, averageSpeed, isDNF }: RiderWithElapsedTime, index: number) => {
                               if (!checkpoint) return null;
+
+                              // Determine background color based on status
+                              let bgColor = '';
+                              if (isDNF) {
+                                bgColor = 'bg-red-50';
+                              } else if (averageSpeed && averageSpeed < 15 && rider.status === 'in_progress') {
+                                bgColor = 'bg-yellow-50';
+                              }
 
                               return (
                                 <div 
                                   key={rider.rider_no} 
                                   className={`flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer text-sm ${
                                     hasProgressedBeyond ? 'opacity-60' : ''
-                                  }`}
+                                  } ${bgColor}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedRider(rider);
                                   }}
                                 >
                                   <div className="flex items-center gap-2 flex-1">
-                                    {sortMode === 'rank' && (
+                                    {sortMode === 'rank' && !isDNF && (
                                       <span className="text-xs font-medium text-muted-foreground w-8">#{index + 1}</span>
                                     )}
-                                    {getStatusIcon(rider.status)}
-                                    <span className="font-medium">{formatRiderName(rider.name, rider.rider_no)}</span>
+                                    {getStatusIcon(rider.status, rider, averageSpeed)}
+                                    <span className={`font-medium ${isDNF ? 'text-red-600' : ''}`}>
+                                      {formatRiderName(rider.name, rider.rider_no)}
+                                    </span>
                                     <span className="text-xs text-muted-foreground">({rider.rider_no})</span>
-                                    {hasProgressedBeyond && (
+                                    {isDNF && (
+                                      <Badge className="bg-red-500 text-white text-xs px-1.5 py-0">DNF</Badge>
+                                    )}
+                                    {hasProgressedBeyond && !isDNF && (
                                       <span className="text-xs text-muted-foreground" title="Rider has progressed to a later control">
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -953,13 +1024,22 @@ const IndianRiders: React.FC = () => {
                                         <span className="text-xs ml-1">({calculateTimeAgo(checkpoint.time)})</span>
                                       )}
                                     </span>
-                                    {elapsedMinutes > 0 && (
+                                    {elapsedMinutes > 0 && !isDNF && (
                                       <Badge 
                                         variant={sortMode === 'rank' && index < 3 ? "default" : "secondary"} 
-                                        className="text-xs px-2 py-0 min-w-[60px] text-center"
+                                        className={`text-xs px-2 py-0 min-w-[60px] text-center ${
+                                          averageSpeed && averageSpeed < 15 ? 'bg-yellow-500 text-white' : ''
+                                        }`}
                                       >
                                         {elapsedFormatted}
                                       </Badge>
+                                    )}
+                                    {averageSpeed !== undefined && averageSpeed > 0 && (
+                                      <span className={`text-xs ${
+                                        averageSpeed < 15 ? 'text-yellow-600 font-medium' : 'text-muted-foreground'
+                                      }`}>
+                                        {averageSpeed.toFixed(1)} km/h
+                                      </span>
                                     )}
                                   </div>
                                 </div>
@@ -1062,7 +1142,7 @@ const IndianRiders: React.FC = () => {
                 <DialogDescription>
                   <div className="flex items-center gap-4 mt-2">
                     <span>Rider No: {selectedRider.rider_no}</span>
-                    {getStatusBadge(selectedRider.status)}
+                    {getStatusBadge(selectedRider.status, selectedRider)}
                   </div>
                 </DialogDescription>
               </DialogHeader>
