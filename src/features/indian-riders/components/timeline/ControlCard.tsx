@@ -4,9 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import type { Rider, Checkpoint } from '../../types';
 import type { Control } from '../../types/weather';
-import { WeatherIndicator } from '../shared/WeatherIndicator';
-import { WeatherAlert } from '../shared/WeatherAlert';
-import { CONTROL_WEATHER } from '../../constants/weather';
+import type { ControlWeatherData } from '../../services/weatherService';
+import { CompactWeatherDisplay, ExtendedWeatherDisplay } from '../shared/CompactWeatherDisplay';
 import { calculateTimeAgo } from '../../utils/riderCalculations';
 import { RiderList } from './RiderList';
 
@@ -27,6 +26,7 @@ interface ControlCardProps {
   selectedRiderId: string | null;
   onSelectRider: (riderId: string | null) => void;
   allRiders: Rider[];
+  weather: ControlWeatherData | null;
 }
 
 interface RiderWithTimestamp {
@@ -51,10 +51,10 @@ export const ControlCard: React.FC<ControlCardProps> = ({
   onToggleShowAll,
   selectedRiderId,
   onSelectRider,
-  allRiders
+  allRiders,
+  weather
 }) => {
   const riderCount = ridersAtControl.length;
-  const weather = CONTROL_WEATHER.find(w => w.control === control.name);
   const writtleDistance = control.km;
   
   // Get latest arrivals
@@ -149,7 +149,7 @@ export const ControlCard: React.FC<ControlCardProps> = ({
                 <CardTitle className="text-base sm:text-lg font-semibold truncate">
                   {control.name}
                 </CardTitle>
-                {weather && <WeatherIndicator weather={weather} />}
+                {weather && <CompactWeatherDisplay weather={weather} />}
                 {!isStart && (
                   <span className="hidden sm:inline text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                     +20km for London start
@@ -206,8 +206,10 @@ export const ControlCard: React.FC<ControlCardProps> = ({
         
         {isExpanded && riderCount > 0 && (
           <CardContent className="pt-0 pb-2 sm:pb-3 px-2 sm:px-6">
-            {weather && weather.condition === 'rain' && (
-              <WeatherAlert weather={weather} control={control} />
+            {weather && (
+              <div className="mb-3">
+                <ExtendedWeatherDisplay weather={weather} />
+              </div>
             )}
             
             <div className="mb-2 sm:mb-3">

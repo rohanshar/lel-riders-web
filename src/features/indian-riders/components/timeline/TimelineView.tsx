@@ -3,6 +3,7 @@ import type { Rider } from '../../types';
 import type { Control } from '../../types/weather';
 import { ControlCard } from './ControlCard';
 import { useControlsData } from '../../hooks/useControlsData';
+import { useWeatherData } from '../../hooks/useWeatherData';
 import { isLondonStartRider } from '@/config/lel-route';
 
 interface TimelineViewProps {
@@ -21,6 +22,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   onSelectRider
 }) => {
   const { controls } = useControlsData();
+  const { getWeatherForControl } = useWeatherData();
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [showAllRiders, setShowAllRiders] = useState<Record<string, boolean>>({});
   
@@ -136,6 +138,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           selectedRiderId={selectedRiderId}
           onSelectRider={onSelectRider}
           allRiders={riders}
+          weather={isStart ? null : getWeatherForControl(control.name)}
         />
       ))}
     </div>
