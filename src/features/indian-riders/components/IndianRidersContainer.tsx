@@ -13,6 +13,7 @@ import { RefreshButton } from './shared/RefreshButton';
 import { LatestUpdatesCard } from './latest-updates/LatestUpdatesCard';
 import { TimelineView } from './timeline/TimelineView';
 import { RiderDetailDialog } from './rider-detail/RiderDetailDialog';
+import { PauseBanner } from './shared/PauseBanner';
 
 // Hooks
 import { useIndianRidersData } from '../hooks/useIndianRidersData';
@@ -183,6 +184,9 @@ export const IndianRidersContainer: React.FC = () => {
       </div>
 
       <div className="space-y-6">
+          {/* Pause Banner - Auto-hides after 3:30 PM UK time */}
+          <PauseBanner />
+          
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>

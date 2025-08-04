@@ -34,7 +34,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
     // First 10 controls for London-Edinburgh journey
     const controlsToShow = controls.slice(0, 10);
     
-    const processed = controlsToShow.map((control, index) => {
+    const processedControls = controlsToShow.map((control, index) => {
       const isStart = control.name === 'Start' || index === 0;
       const isLast = index === controlsToShow.length - 1;
       
@@ -79,6 +79,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       
       const cardId = `${control.name}-${index}`;
       
+      // A control is considered "passed" if no riders are currently there
+      // and all riders who reached it have moved on (including Start)
+      const isPassed = currentRiderCount === 0 && ridersAtControl.length > 0;
+      
       return {
         control,
         ridersAtControl,
@@ -87,25 +91,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         hasWrittleRiders,
         isStart,
         isLast,
-        cardId
+        cardId,
+        isPassed
       };
     });
     
     // Separate active and passed controls
-    const activeControls: typeof processed = [];
-    const passedControls: typeof processed = [];
+    const active: typeof processedControls = [];
+    const passed: typeof processedControls = [];
     
-    processed.forEach((controlData) => {
-      // A control is considered "passed" if no riders are currently there
-      // and all riders who reached it have moved on
-      if (controlData.currentRiderCount === 0 && controlData.ridersAtControl.length > 0 && !controlData.isStart) {
-        passedControls.push(controlData);
+    processedControls.forEach(controlData => {
+      if (controlData.isPassed) {
+        passed.push(controlData);
       } else {
-        activeControls.push(controlData);
+        active.push(controlData);
       }
     });
     
-    return { activeControls, passedControls };
+    return { activeControls: active, passedControls: passed };
   }, [controls, riders]);
   
   const toggleCardExpansion = (cardId: string) => {
@@ -129,6 +132,83 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   
   return (
     <div className="relative">
+      {/* Passed Controls - Collapsed as a single group */}
+      {passedControls.length > 0 && (
+        <div className="mb-4">
+          {!showPassedControls ? (
+            <Card 
+              className="cursor-pointer hover:shadow-md transition-all duration-200 bg-gray-50"
+              onClick={() => setShowPassedControls(true)}
+            >
+              <CardHeader className="p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      {passedControls.map((_, index) => (
+                        <div key={index} className="w-2 h-2 rounded-full bg-gray-400"></div>
+                      ))}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-600">
+                        {passedControls.length} Passed Control{passedControls.length > 1 ? 's' : ''}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {passedControls.map(pc => pc.control.name).join(' • ')} • Click to expand
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </div>
+              </CardHeader>
+            </Card>
+          ) : (
+            <>
+              {/* Collapse button */}
+              <div 
+                className="flex items-center justify-end mb-2 cursor-pointer text-xs text-gray-500 hover:text-gray-700"
+                onClick={() => setShowPassedControls(false)}
+              >
+                <span>Hide passed controls</span>
+                <ChevronUp className="h-3 w-3 ml-1" />
+              </div>
+              {/* Render passed controls */}
+              {passedControls.map(({
+                control,
+                ridersAtControl,
+                currentRiderCount,
+                hasLondonRiders,
+                hasWrittleRiders,
+                isStart,
+                isLast,
+                cardId
+              }) => (
+                <div key={cardId} className="mb-2">
+                  <ControlCard
+                    control={control}
+                    ridersAtControl={ridersAtControl}
+                    currentRiderCount={currentRiderCount}
+                    hasLondonRiders={hasLondonRiders}
+                    hasWrittleRiders={hasWrittleRiders}
+                    isStart={isStart}
+                    isLast={isLast}
+                    isExpanded={expandedCards.has(cardId)}
+                    onToggleExpansion={() => toggleCardExpansion(cardId)}
+                    searchTerm={searchTerm}
+                    onSearch={onSearch}
+                    showAllRiders={showAllRiders[cardId] || false}
+                    onToggleShowAll={() => toggleShowAllRiders(cardId)}
+                    selectedRiderId={selectedRiderId}
+                    onSelectRider={onSelectRider}
+                    allRiders={riders}
+                    weather={isStart ? null : getWeatherForControl(control.name)}
+                  />
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+      
       {/* Active Controls */}
       {activeControls.map(({
         control,
@@ -161,68 +241,6 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           weather={isStart ? null : getWeatherForControl(control.name)}
         />
       ))}
-      
-      {/* Passed Controls - Collapsed by default */}
-      {passedControls.length > 0 && (
-        <div className="mb-6">
-          <Card 
-            className="cursor-pointer hover:shadow-md transition-all duration-200"
-            onClick={() => setShowPassedControls(!showPassedControls)}
-          >
-            <CardHeader className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-base font-semibold">
-                    Passed Controls ({passedControls.length})
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Controls where all riders have moved on
-                  </p>
-                </div>
-                <div className="flex items-center">
-                  {showPassedControls ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-          
-          {showPassedControls && (
-            <div className="mt-2">
-              {passedControls.map(({
-                control,
-                ridersAtControl,
-                currentRiderCount,
-                hasLondonRiders,
-                hasWrittleRiders,
-                isStart,
-                isLast,
-                cardId
-              }) => (
-                <ControlCard
-                  key={cardId}
-                  control={control}
-                  ridersAtControl={ridersAtControl}
-                  currentRiderCount={currentRiderCount}
-                  hasLondonRiders={hasLondonRiders}
-                  hasWrittleRiders={hasWrittleRiders}
-                  isStart={isStart}
-                  isLast={isLast}
-                  isExpanded={expandedCards.has(cardId)}
-                  onToggleExpansion={() => toggleCardExpansion(cardId)}
-                  searchTerm={searchTerm}
-                  onSearch={onSearch}
-                  showAllRiders={showAllRiders[cardId] || false}
-                  onToggleShowAll={() => toggleShowAllRiders(cardId)}
-                  selectedRiderId={selectedRiderId}
-                  onSelectRider={onSelectRider}
-                  allRiders={riders}
-                  weather={isStart ? null : getWeatherForControl(control.name)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };

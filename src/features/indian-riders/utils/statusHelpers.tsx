@@ -5,7 +5,7 @@ import type { Rider } from '../types';
 import { shouldBeMarkedDNF } from './riderCalculations';
 
 export const getStatusBadge = (status: string, rider?: Rider) => {
-  // Check if rider should be marked as DNF due to 12+ hours without update
+  // Check if rider should be marked as DNF due to 16+ hours without update
   if (rider && shouldBeMarkedDNF(rider)) {
     return <Badge className="bg-red-500">DNF</Badge>;
   }

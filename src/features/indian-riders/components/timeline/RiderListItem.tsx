@@ -63,7 +63,7 @@ export const RiderListItem: React.FC<RiderListItemProps> = ({
         </span>
         <span className="hidden sm:inline text-xs text-muted-foreground flex-shrink-0">({rider.rider_no})</span>
         {isDNF && (
-          <Badge className="bg-red-500 text-white text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 flex-shrink-0" title="No update for 12+ hours">DNF</Badge>
+          <Badge className="bg-red-500 text-white text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 flex-shrink-0" title="No update for 16+ hours">DNF</Badge>
         )}
         {hasProgressedBeyond && !isDNF && (
           <span className="text-xs text-muted-foreground flex-shrink-0" title="Rider has progressed to a later control">

@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 
 export const WeatherAlertPopup: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const [isPauseActive, setIsPauseActive] = useState(true);
 
   useEffect(() => {
     // Check if alert was already dismissed in this session
@@ -11,6 +12,26 @@ export const WeatherAlertPopup: React.FC = () => {
     if (!dismissed) {
       setIsVisible(true);
     }
+    
+    // Check if pause is still active
+    const checkPauseStatus = () => {
+      const now = new Date();
+      const ukTimeString = now.toLocaleString('en-US', { 
+        timeZone: 'Europe/London',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false
+      });
+      const [hours, minutes] = ukTimeString.split(':').map(Number);
+      const currentMinutes = hours * 60 + minutes;
+      const pauseEndMinutes = 15 * 60 + 30; // 3:30 PM = 15:30
+      
+      setIsPauseActive(currentMinutes < pauseEndMinutes);
+    };
+    
+    checkPauseStatus();
+    const interval = setInterval(checkPauseStatus, 60000); // Check every minute
+    return () => clearInterval(interval);
   }, []);
 
   const handleDismiss = () => {
@@ -42,7 +63,7 @@ export const WeatherAlertPopup: React.FC = () => {
                 <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <h2 className="text-lg sm:text-xl font-bold text-red-900">
-                    UPDATE: SEVERE WEATHER WARNING
+                    {isPauseActive ? 'EMERGENCY: ALL CONTROLS PAUSED' : 'UPDATE: RIDE HAS RESUMED'}
                   </h2>
                   <div className="flex items-center gap-2 mt-1 text-xs sm:text-sm text-red-700">
                     <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -70,30 +91,68 @@ export const WeatherAlertPopup: React.FC = () => {
               </p>
               
               <div className="space-y-3 text-gray-700">
-                <p>
-                  We're updating the messaging about the possibility of holding riders at controls during severe weather.
-                </p>
-                
-                <p className="font-medium text-gray-900">
-                  No decision has yet been taken as at 07:00 about pausing.
-                </p>
-                
-                <div className="bg-red-50 border-l-4 border-red-500 p-3 sm:p-4">
-                  <p className="font-semibold text-red-900 mb-1">
-                    ⚠️ IMPORTANT: Disqualification Warning
-                  </p>
-                  <p className="text-red-800">
-                    If we do call a pause, riders leaving controls against the instructions of controllers and their teams will be <strong>disqualified from the ride</strong> and unable to take further part in the event.
-                  </p>
-                </div>
-                
-                <p>
-                  This change is because we don't want to imply that a rider can take a risk at the cost of simply a time penalty. Feedback from riders and volunteers overnight has prompted us to make the message simpler.
-                </p>
-                
-                <p className="font-medium">
-                  At the moment no pause is in place but if you could start alerting riders to the message that a pause will be enforced that would be very helpful.
-                </p>
+                {isPauseActive ? (
+                  <>
+                    <div className="bg-red-50 border-l-4 border-red-500 p-3 sm:p-4">
+                      <p className="font-bold text-red-900 text-lg mb-2">
+                        🛑 IMMEDIATE ACTION REQUIRED
+                      </p>
+                      <p className="text-red-800 font-semibold">
+                        All controls have been <strong>PAUSED until 3:30 PM UK time</strong> due to severe weather conditions.
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <p className="font-medium text-gray-900">
+                        What this means:
+                      </p>
+                      <ul className="list-disc list-inside space-y-1 ml-2">
+                        <li>No riders are allowed to leave any control point until 3:30 PM UK time</li>
+                        <li>The pause is mandatory at all locations</li>
+                        <li>Time will be added to all riders' overall time limits</li>
+                      </ul>
+                    </div>
+                    
+                    <div className="bg-orange-50 border-l-4 border-orange-500 p-3 sm:p-4">
+                      <p className="font-semibold text-orange-900 mb-1">
+                        ⚠️ DISQUALIFICATION WARNING
+                      </p>
+                      <p className="text-orange-800">
+                        Any rider leaving a control during the pause will be <strong>immediately disqualified</strong> and unable to continue in the event.
+                      </p>
+                    </div>
+                    
+                    <p className="font-medium">
+                      Controllers and volunteers at all checkpoints have been instructed to enforce this pause. Please follow their instructions for your safety.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="bg-green-50 border-l-4 border-green-500 p-3 sm:p-4">
+                      <p className="font-bold text-green-900 text-lg mb-2">
+                        ✅ RIDE HAS RESUMED
+                      </p>
+                      <p className="text-green-800 font-semibold">
+                        The weather pause ended at <strong>3:30 PM UK time</strong>. All riders may now continue.
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <p className="font-medium text-gray-900">
+                        Important information:
+                      </p>
+                      <ul className="list-disc list-inside space-y-1 ml-2">
+                        <li>Riders can now leave controls and continue their journey</li>
+                        <li>Time limits have been adjusted to account for the pause</li>
+                        <li>Please ride safely as conditions may still be challenging</li>
+                      </ul>
+                    </div>
+                    
+                    <p className="font-medium">
+                      Stay alert and ride according to the conditions. Your safety is paramount.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 

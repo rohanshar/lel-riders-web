@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from './ui/button';
-import IndianRidersProgressVertical from './IndianRidersProgressVertical';
+import RouteVisualization from './RouteVisualization';
 
 const IndianRidersProgressPage: React.FC = () => {
   return (
@@ -21,7 +21,7 @@ const IndianRidersProgressPage: React.FC = () => {
         </Link>
       </div>
       
-      <IndianRidersProgressVertical />
+      <RouteVisualization />
     </div>
   );
 };
