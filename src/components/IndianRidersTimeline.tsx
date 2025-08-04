@@ -1,8 +1,8 @@
 import React from 'react';
-import IndianRiders from './IndianRiders';
+import IndianRidersContainer from '../features/indian-riders';
 
 const IndianRidersTimeline: React.FC = () => {
-  return <IndianRiders />;
+  return <IndianRidersContainer />;
 };
 
 export default IndianRidersTimeline;

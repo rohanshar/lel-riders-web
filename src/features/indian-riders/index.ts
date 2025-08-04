@@ -1,0 +1,1 @@
+export { IndianRidersContainer as default } from './components/IndianRidersContainer';
