@@ -13,8 +13,6 @@ import { GlobalDataProvider } from './contexts';
 import ErrorBoundary from './components/ErrorBoundary';
 import AsyncBoundary from './components/AsyncBoundary';
 import { buildInfo } from './buildInfo';
-import { WeatherAlertPopup } from './components/WeatherAlertPopup';
-
 function NavBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
@@ -126,7 +124,6 @@ function AppContent() {
   
   return (
     <div className="min-h-screen bg-background">
-      <WeatherAlertPopup />
       <NavBar />
       
       <main className="flex-1">

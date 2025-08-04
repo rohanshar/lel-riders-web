@@ -93,65 +93,52 @@ export const getHoursSinceCheckpoint = (checkpointTime: string): number => {
   if (!checkpointTime || checkpointTime === '-') return 0;
   
   try {
-    // Parse checkpoint time directly (already in UK time)
+    // Get current time and format it properly
+    const now = new Date();
+    
+    // Parse checkpoint time - format is "Sunday 13:45" or just "13:45"
     const parts = checkpointTime.split(' ');
     const timeStr = parts[parts.length - 1];
     const [checkpointHours, checkpointMinutes] = timeStr.split(':').map(Number);
     
     if (isNaN(checkpointHours) || isNaN(checkpointMinutes)) return 0;
     
-    // ⚠️ Get current UK time properly ⚠️
-    const ukTimeString = new Date().toLocaleString('en-US', { 
-      timeZone: 'Europe/London',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
-    
-    // Parse UK time string to get actual UK time
-    const [datePart, timePart] = ukTimeString.split(', ');
-    const [month, day, year] = datePart.split('/');
-    const [hours, minutes] = timePart.split(':');
-    const ukNow = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes));
-    
-    // For the LEL event starting Sunday Aug 3, 2025
-    const eventStartDate = new Date('2025-08-03'); // Sunday
+    // Create two dates in UK timezone to compare
+    // First, create a date for the checkpoint
+    const eventStartDate = new Date('2025-08-03T00:00:00'); // Sunday Aug 3, 2025
     
     let checkpointDate: Date;
     
     if (parts.length > 1 && parts[0]) {
-      // We have a day name
+      // We have a day name like "Sunday 13:45"
       const dayName = parts[0];
       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const checkpointDayIndex = daysOfWeek.indexOf(dayName);
+      const dayIndex = daysOfWeek.indexOf(dayName);
       
-      if (checkpointDayIndex !== -1) {
+      if (dayIndex !== -1) {
+        // Calculate the actual date for this checkpoint
         checkpointDate = new Date(eventStartDate);
-        checkpointDate.setDate(eventStartDate.getDate() + checkpointDayIndex);
+        checkpointDate.setDate(eventStartDate.getDate() + dayIndex);
         checkpointDate.setHours(checkpointHours, checkpointMinutes, 0, 0);
       } else {
-        checkpointDate = new Date(ukNow);
-        checkpointDate.setHours(checkpointHours, checkpointMinutes, 0, 0);
-        if (checkpointDate > ukNow) {
-          checkpointDate.setDate(checkpointDate.getDate() - 1);
-        }
+        // Shouldn't happen, but fallback
+        console.warn('Unknown day name in checkpoint time:', dayName);
+        return 0;
       }
     } else {
-      checkpointDate = new Date(ukNow);
-      checkpointDate.setHours(checkpointHours, checkpointMinutes, 0, 0);
-      if (checkpointDate > ukNow) {
-        checkpointDate.setDate(checkpointDate.getDate() - 1);
-      }
+      // No day name, just time - this shouldn't happen in LEL data
+      console.warn('Checkpoint time without day name:', checkpointTime);
+      return 0;
     }
     
-    const minutesAgo = Math.floor((ukNow.getTime() - checkpointDate.getTime()) / (1000 * 60));
-    return minutesAgo / 60; // Return hours
+    // Calculate difference in milliseconds
+    const diffMs = now.getTime() - checkpointDate.getTime();
+    const hours = diffMs / (1000 * 60 * 60);
+    
+    // Return hours, but ensure it's not negative (shouldn't be possible, but just in case)
+    return Math.max(0, hours);
   } catch (error) {
-    console.error('Error calculating hours since checkpoint:', error);
+    console.error('Error calculating hours since checkpoint:', error, checkpointTime);
     return 0;
   }
 };
@@ -160,74 +147,12 @@ export const calculateTimeAgo = (checkpointTime: string): string => {
   // ⚠️ CRITICAL TIMEZONE INFORMATION ⚠️
   // ALL checkpoint times in the JSON are in UK TIME (Europe/London)
   // The LEL event is in the UK, so ALL times are UK times
-  // DO NOT convert to IST or any other timezone!
-  // This function MUST calculate "ago" times using UK time ONLY
   
   if (!checkpointTime || checkpointTime === '-') return '';
   
   try {
-    // Parse checkpoint time - format is usually "Sunday 13:45" or "13:45"
-    // These times are ALREADY in UK time
-    const parts = checkpointTime.split(' ');
-    const timeStr = parts[parts.length - 1];
-    const [checkpointHours, checkpointMinutes] = timeStr.split(':').map(Number);
-    
-    if (isNaN(checkpointHours) || isNaN(checkpointMinutes)) return '';
-    
-    // ⚠️ IMPORTANT: Get current UK time properly ⚠️
-    // We need the actual current time in UK timezone
-    const ukTimeString = new Date().toLocaleString('en-US', { 
-      timeZone: 'Europe/London',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
-    
-    // Parse UK time string to get actual UK time as Date object
-    const [datePart, timePart] = ukTimeString.split(', ');
-    const [month, day, year] = datePart.split('/');
-    const [hours, minutes, seconds] = timePart.split(':');
-    const ukNow = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes), parseInt(seconds));
-    
-    // For the LEL event starting Sunday Aug 3, 2025
-    const eventStartDate = new Date('2025-08-03'); // Sunday
-    
-    let checkpointDate: Date;
-    
-    if (parts.length > 1 && parts[0]) {
-      // We have a day name
-      const dayName = parts[0];
-      const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const checkpointDayIndex = daysOfWeek.indexOf(dayName);
-      
-      if (checkpointDayIndex !== -1) {
-        // Calculate the actual date based on the day name
-        // The event starts on Sunday (index 0)
-        checkpointDate = new Date(eventStartDate);
-        checkpointDate.setDate(eventStartDate.getDate() + checkpointDayIndex);
-        checkpointDate.setHours(checkpointHours, checkpointMinutes, 0, 0);
-      } else {
-        // Fallback if day name not recognized
-        checkpointDate = new Date(ukNow);
-        checkpointDate.setHours(checkpointHours, checkpointMinutes, 0, 0);
-        if (checkpointDate > ukNow) {
-          checkpointDate.setDate(checkpointDate.getDate() - 1);
-        }
-      }
-    } else {
-      // No day name, assume today or yesterday
-      checkpointDate = new Date(ukNow);
-      checkpointDate.setHours(checkpointHours, checkpointMinutes, 0, 0);
-      if (checkpointDate > ukNow) {
-        checkpointDate.setDate(checkpointDate.getDate() - 1);
-      }
-    }
-    
-    const minutesAgo = Math.floor((ukNow.getTime() - checkpointDate.getTime()) / (1000 * 60));
+    const hours = getHoursSinceCheckpoint(checkpointTime);
+    const minutesAgo = Math.floor(hours * 60);
     
     if (minutesAgo < 0) return ''; // Future time
     if (minutesAgo < 60) {
