@@ -1205,6 +1205,76 @@ const IndianRiders: React.FC = () => {
                       <MapPin className="h-4 w-4 text-gray-600" />
                       <span>Current Location: <strong>{selectedRider.current_checkpoint || selectedRider.last_checkpoint || 'Start'}</strong></span>
                     </div>
+                    {(() => {
+                      // Calculate current rank based on elapsed time
+                      if (selectedRider.status === 'not_started' || selectedRider.checkpoints.length <= 1) return null;
+                      
+                      const lastCheckpoint = selectedRider.checkpoints[selectedRider.checkpoints.length - 1];
+                      const startCheckpoint = selectedRider.checkpoints[0];
+                      
+                      const parseTime = (timeStr: string) => {
+                        const parts = timeStr.split(' ');
+                        const time = parts[parts.length - 1];
+                        const [hours, minutes] = time.split(':').map(Number);
+                        return hours * 60 + minutes;
+                      };
+                      
+                      const startMinutes = parseTime(startCheckpoint.time);
+                      const lastMinutes = parseTime(lastCheckpoint.time);
+                      let elapsedMinutes = lastMinutes - startMinutes;
+                      
+                      if (elapsedMinutes < 0) {
+                        elapsedMinutes += 24 * 60;
+                      }
+                      
+                      // Get all riders who reached at least the same checkpoint
+                      const ridersAtSameOrBeyond = filteredRiders.filter((r: Rider) => {
+                        const riderDistance = calculateRiderDistance(r);
+                        const selectedRiderDistance = calculateRiderDistance(selectedRider);
+                        return riderDistance >= selectedRiderDistance && r.checkpoints.length > 1;
+                      });
+                      
+                      // Calculate elapsed time for each rider
+                      interface RiderWithElapsed {
+                        rider: Rider;
+                        elapsedMinutes: number;
+                      }
+                      
+                      const ridersWithElapsedTime = ridersAtSameOrBeyond.map((r: Rider): RiderWithElapsed => {
+                        const riderStartCheckpoint = r.checkpoints[0];
+                        const riderLastCheckpoint = r.checkpoints[r.checkpoints.length - 1];
+                        
+                        const riderStartMinutes = parseTime(riderStartCheckpoint.time);
+                        const riderLastMinutes = parseTime(riderLastCheckpoint.time);
+                        let riderElapsedMinutes = riderLastMinutes - riderStartMinutes;
+                        
+                        if (riderElapsedMinutes < 0) {
+                          riderElapsedMinutes += 24 * 60;
+                        }
+                        
+                        return {
+                          rider: r,
+                          elapsedMinutes: riderElapsedMinutes
+                        };
+                      }).filter((item: RiderWithElapsed) => item.elapsedMinutes > 0);
+                      
+                      // Sort by elapsed time
+                      ridersWithElapsedTime.sort((a: RiderWithElapsed, b: RiderWithElapsed) => a.elapsedMinutes - b.elapsedMinutes);
+                      
+                      const overallRank = ridersWithElapsedTime.findIndex(
+                        (item: RiderWithElapsed) => item.rider.rider_no === selectedRider.rider_no
+                      ) + 1;
+                      
+                      if (overallRank > 0) {
+                        return (
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-gray-600" />
+                            <span>Overall Rank: <strong>#{overallRank}</strong> out of {ridersWithElapsedTime.length} active riders</span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                     {selectedRider.status === 'in_progress' && (() => {
                       // Calculate expected arrival at next control
                       const currentDistance = calculateRiderDistance(selectedRider);
@@ -1437,6 +1507,14 @@ const IndianRiders: React.FC = () => {
                         const waveStartTime = getWaveStartTime(selectedRider.rider_no);
                         const controls = getControlsForRider(selectedRider.rider_no);
                         
+                        // Helper function to parse time
+                        const parseTime = (timeStr: string) => {
+                          const parts = timeStr.split(' ');
+                          const time = parts[parts.length - 1];
+                          const [hours, minutes] = time.split(':').map(Number);
+                          return hours * 60 + minutes;
+                        };
+                        
                         // Calculate elapsed time from actual start
                         let elapsedFormatted = '';
                         let elapsedMinutes = 0;
@@ -1447,13 +1525,6 @@ const IndianRiders: React.FC = () => {
                           // Calculate from actual start time
                           const startCheckpoint = selectedRider.checkpoints[0];
                           
-                          const parseTime = (timeStr: string) => {
-                            const parts = timeStr.split(' ');
-                            const time = parts[parts.length - 1];
-                            const [hours, minutes] = time.split(':').map(Number);
-                            return hours * 60 + minutes;
-                          };
-                          
                           const startMinutes = parseTime(startCheckpoint.time);
                           const currentMinutes = parseTime(checkpoint.time);
                           elapsedMinutes = currentMinutes - startMinutes;
@@ -1463,6 +1534,66 @@ const IndianRiders: React.FC = () => {
                           }
                           
                           elapsedFormatted = formatElapsedTime(elapsedMinutes);
+                        }
+                        
+                        // Calculate rank at this checkpoint
+                        let rank = null;
+                        let totalRidersAtCheckpoint = 0;
+                        if (!isStartCheckpoint && elapsedMinutes > 0) {
+                          // Get all riders who reached this checkpoint
+                          const ridersAtCheckpoint = filteredRiders.filter((r: Rider) => 
+                            r.checkpoints.some(cp => 
+                              cp.name === checkpoint.name || 
+                              cp.name.includes(checkpoint.name) ||
+                              checkpoint.name.includes(cp.name)
+                            )
+                          );
+                          
+                          totalRidersAtCheckpoint = ridersAtCheckpoint.length;
+                          
+                          // Calculate elapsed time for each rider at this checkpoint
+                          interface RiderWithCheckpointElapsed {
+                            rider: Rider;
+                            elapsedMinutes: number;
+                          }
+                          
+                          const ridersWithElapsedTime = ridersAtCheckpoint.map((r: Rider): RiderWithCheckpointElapsed | null => {
+                            const riderCheckpoint = r.checkpoints.find(cp => 
+                              cp.name === checkpoint.name || 
+                              cp.name.includes(checkpoint.name) ||
+                              checkpoint.name.includes(cp.name)
+                            );
+                            
+                            if (!riderCheckpoint || !riderCheckpoint.time) return null;
+                            
+                            // Calculate elapsed time from their start
+                            const riderStartCheckpoint = r.checkpoints[0];
+                            if (!riderStartCheckpoint) return null;
+                            
+                            const riderStartMinutes = parseTime(riderStartCheckpoint.time);
+                            const riderCheckpointMinutes = parseTime(riderCheckpoint.time);
+                            let riderElapsedMinutes = riderCheckpointMinutes - riderStartMinutes;
+                            
+                            if (riderElapsedMinutes < 0) {
+                              riderElapsedMinutes += 24 * 60;
+                            }
+                            
+                            return {
+                              rider: r,
+                              elapsedMinutes: riderElapsedMinutes
+                            };
+                          }).filter((item: RiderWithCheckpointElapsed | null): item is RiderWithCheckpointElapsed => item !== null && item.elapsedMinutes > 0);
+                          
+                          // Sort by elapsed time and find rank
+                          ridersWithElapsedTime.sort((a: RiderWithCheckpointElapsed, b: RiderWithCheckpointElapsed) => a.elapsedMinutes - b.elapsedMinutes);
+                          
+                          const riderIndex = ridersWithElapsedTime.findIndex(
+                            (item: RiderWithCheckpointElapsed) => item.rider.rider_no === selectedRider.rider_no
+                          );
+                          
+                          if (riderIndex >= 0) {
+                            rank = riderIndex + 1;
+                          }
                         }
                         
                         // Calculate control-to-control speed and time
@@ -1543,6 +1674,16 @@ const IndianRiders: React.FC = () => {
                               <div>
                                 <h4 className="font-semibold">{checkpoint.name}</h4>
                                 <p className="text-sm text-muted-foreground">Checkpoint #{index + 1}</p>
+                                {rank && (
+                                  <div className="mt-1">
+                                    <Badge 
+                                      variant={rank <= 3 ? "default" : "secondary"} 
+                                      className={`text-xs ${rank <= 3 ? 'bg-primary' : ''}`}
+                                    >
+                                      Rank #{rank} of {totalRidersAtCheckpoint} riders
+                                    </Badge>
+                                  </div>
+                                )}
                                 {legDistance > 0 && (
                                   <div className="mt-2 text-xs space-y-1">
                                     <p className="text-muted-foreground">Leg: {legDistance} km in {legTime}</p>
