@@ -912,11 +912,34 @@ const IndianRiders: React.FC = () => {
                       
                       // Calculate average speed from actual data
                       let averageSpeed = 0;
-                      if (currentDistance > 0 && selectedRider.checkpoints.length > 0) {
+                      if (currentDistance > 0 && selectedRider.checkpoints.length > 1) {
+                        // Get actual start time from first checkpoint
+                        const startCheckpoint = selectedRider.checkpoints[0];
                         const lastCheckpoint = selectedRider.checkpoints[selectedRider.checkpoints.length - 1];
-                        const elapsed = calculateElapsedTime(selectedRider.rider_no, lastCheckpoint.time);
-                        if (elapsed && elapsed > 0) {
-                          averageSpeed = (currentDistance / elapsed) * 60; // km/h
+                        
+                        // Calculate elapsed time between actual start and last checkpoint
+                        const startTime = startCheckpoint.time;
+                        const lastTime = lastCheckpoint.time;
+                        
+                        // Parse times - both are in "Sunday HH:MM" format
+                        const parseTime = (timeStr: string) => {
+                          const parts = timeStr.split(' ');
+                          const time = parts[parts.length - 1];
+                          const [hours, minutes] = time.split(':').map(Number);
+                          return hours * 60 + minutes;
+                        };
+                        
+                        const startMinutes = parseTime(startTime);
+                        const lastMinutes = parseTime(lastTime);
+                        let elapsedMinutes = lastMinutes - startMinutes;
+                        
+                        // Handle day boundary
+                        if (elapsedMinutes < 0) {
+                          elapsedMinutes += 24 * 60;
+                        }
+                        
+                        if (elapsedMinutes > 0) {
+                          averageSpeed = (currentDistance / elapsedMinutes) * 60; // km/h
                         }
                       }
                       
@@ -1004,10 +1027,28 @@ const IndianRiders: React.FC = () => {
                     <p className="text-xl font-semibold">
                       {(() => {
                         if (selectedRider.status === 'not_started') return '-';
-                        if (selectedRider.checkpoints.length === 0) return '-';
+                        if (selectedRider.checkpoints.length <= 1) return '0m';
+                        
+                        // Calculate from actual start time
+                        const startCheckpoint = selectedRider.checkpoints[0];
                         const lastCheckpoint = selectedRider.checkpoints[selectedRider.checkpoints.length - 1];
-                        const elapsed = calculateElapsedTime(selectedRider.rider_no, lastCheckpoint.time);
-                        return elapsed !== null ? formatElapsedTime(elapsed) : '-';
+                        
+                        const parseTime = (timeStr: string) => {
+                          const parts = timeStr.split(' ');
+                          const time = parts[parts.length - 1];
+                          const [hours, minutes] = time.split(':').map(Number);
+                          return hours * 60 + minutes;
+                        };
+                        
+                        const startMinutes = parseTime(startCheckpoint.time);
+                        const lastMinutes = parseTime(lastCheckpoint.time);
+                        let elapsedMinutes = lastMinutes - startMinutes;
+                        
+                        if (elapsedMinutes < 0) {
+                          elapsedMinutes += 24 * 60;
+                        }
+                        
+                        return formatElapsedTime(elapsedMinutes);
                       })()}
                     </p>
                   </div>
@@ -1017,11 +1058,29 @@ const IndianRiders: React.FC = () => {
                       {(() => {
                         if (selectedRider.status === 'not_started') return '-';
                         const distance = calculateRiderDistance(selectedRider);
-                        if (distance === 0 || selectedRider.checkpoints.length === 0) return '-';
+                        if (distance === 0 || selectedRider.checkpoints.length <= 1) return '-';
+                        
+                        // Calculate from actual start time
+                        const startCheckpoint = selectedRider.checkpoints[0];
                         const lastCheckpoint = selectedRider.checkpoints[selectedRider.checkpoints.length - 1];
-                        const elapsed = calculateElapsedTime(selectedRider.rider_no, lastCheckpoint.time);
-                        if (elapsed && elapsed > 0) {
-                          const speed = (distance / elapsed) * 60; // km/h
+                        
+                        const parseTime = (timeStr: string) => {
+                          const parts = timeStr.split(' ');
+                          const time = parts[parts.length - 1];
+                          const [hours, minutes] = time.split(':').map(Number);
+                          return hours * 60 + minutes;
+                        };
+                        
+                        const startMinutes = parseTime(startCheckpoint.time);
+                        const lastMinutes = parseTime(lastCheckpoint.time);
+                        let elapsedMinutes = lastMinutes - startMinutes;
+                        
+                        if (elapsedMinutes < 0) {
+                          elapsedMinutes += 24 * 60;
+                        }
+                        
+                        if (elapsedMinutes > 0) {
+                          const speed = (distance / elapsedMinutes) * 60; // km/h
                           return `${speed.toFixed(1)} km/h`;
                         }
                         return '-';
@@ -1061,18 +1120,32 @@ const IndianRiders: React.FC = () => {
                         const waveStartTime = getWaveStartTime(selectedRider.rider_no);
                         const controls = getControlsForRider(selectedRider.rider_no);
                         
-                        // Calculate elapsed time
+                        // Calculate elapsed time from actual start
                         let elapsedFormatted = '';
                         let elapsedMinutes = 0;
                         if (isStartCheckpoint) {
                           elapsedFormatted = '0m';
                           elapsedMinutes = 0;
                         } else {
-                          const elapsed = calculateElapsedTime(selectedRider.rider_no, checkpoint.time);
-                          if (elapsed !== null) {
-                            elapsedFormatted = formatElapsedTime(elapsed);
-                            elapsedMinutes = elapsed;
+                          // Calculate from actual start time
+                          const startCheckpoint = selectedRider.checkpoints[0];
+                          
+                          const parseTime = (timeStr: string) => {
+                            const parts = timeStr.split(' ');
+                            const time = parts[parts.length - 1];
+                            const [hours, minutes] = time.split(':').map(Number);
+                            return hours * 60 + minutes;
+                          };
+                          
+                          const startMinutes = parseTime(startCheckpoint.time);
+                          const currentMinutes = parseTime(checkpoint.time);
+                          elapsedMinutes = currentMinutes - startMinutes;
+                          
+                          if (elapsedMinutes < 0) {
+                            elapsedMinutes += 24 * 60;
                           }
+                          
+                          elapsedFormatted = formatElapsedTime(elapsedMinutes);
                         }
                         
                         // Calculate control-to-control speed and time
@@ -1082,8 +1155,31 @@ const IndianRiders: React.FC = () => {
                         
                         if (index > 0) {
                           const prevCheckpoint = selectedRider.checkpoints[index - 1];
-                          const prevElapsed = calculateElapsedTime(selectedRider.rider_no, prevCheckpoint.time) || 0;
-                          const timeDiff = elapsedMinutes - prevElapsed;
+                          
+                          // Calculate elapsed time for previous checkpoint
+                          let prevElapsedMinutes = 0;
+                          if (index === 1) {
+                            // Previous checkpoint is start
+                            prevElapsedMinutes = 0;
+                          } else {
+                            const startCheckpoint = selectedRider.checkpoints[0];
+                            const parseTime = (timeStr: string) => {
+                              const parts = timeStr.split(' ');
+                              const time = parts[parts.length - 1];
+                              const [hours, minutes] = time.split(':').map(Number);
+                              return hours * 60 + minutes;
+                            };
+                            
+                            const startMinutes = parseTime(startCheckpoint.time);
+                            const prevMinutes = parseTime(prevCheckpoint.time);
+                            prevElapsedMinutes = prevMinutes - startMinutes;
+                            
+                            if (prevElapsedMinutes < 0) {
+                              prevElapsedMinutes += 24 * 60;
+                            }
+                          }
+                          
+                          const timeDiff = elapsedMinutes - prevElapsedMinutes;
                           
                           // Find distances for current and previous checkpoints
                           const cleanCheckpointName = checkpoint.name.replace(/\s+[NSEW]$/, '');
