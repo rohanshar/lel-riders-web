@@ -16,10 +16,28 @@ interface RiderPosition {
 }
 
 const IndianRidersProgressVertical: React.FC = () => {
-  const { rawTrackingData } = useGlobalData();
+  const { rawTrackingData, loading, errors, refreshTracking } = useGlobalData();
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  // Fetch data on mount if not available
+  useEffect(() => {
+    if (!rawTrackingData && !loading.tracking && !errors.tracking) {
+      refreshTracking();
+    }
+  }, [rawTrackingData, loading.tracking, errors.tracking, refreshTracking]);
+
+  // Debug: Log the data structure
+  useEffect(() => {
+    console.log('IndianRidersProgressVertical - rawTrackingData:', rawTrackingData);
+    console.log('IndianRidersProgressVertical - loading:', loading);
+    console.log('IndianRidersProgressVertical - errors:', errors);
+    if (rawTrackingData) {
+      console.log('IndianRidersProgressVertical - rawTrackingData keys:', Object.keys(rawTrackingData));
+      console.log('IndianRidersProgressVertical - riders count:', rawTrackingData.riders?.length);
+    }
+  }, [rawTrackingData, loading, errors]);
 
   // Get Indian riders from the tracking data
   const indianRiders = rawTrackingData?.riders || [];
@@ -66,18 +84,25 @@ const IndianRidersProgressVertical: React.FC = () => {
       if (containerRef.current) {
         const { width } = containerRef.current.getBoundingClientRect();
         // Fixed height for vertical layout
-        setDimensions({ width: width - 40, height: 800 });
+        const calculatedWidth = Math.max(width - 40, 600); // Minimum width of 600px
+        console.log('Container width:', width, 'Calculated width:', calculatedWidth);
+        setDimensions({ width: calculatedWidth, height: 800 });
       }
     };
 
-    updateDimensions();
+    // Small delay to ensure container is fully rendered
+    setTimeout(updateDimensions, 100);
     window.addEventListener('resize', updateDimensions);
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
   // D3 visualization
   useEffect(() => {
-    if (!svgRef.current || dimensions.width === 0 || riderPositions.length === 0) return;
+    console.log('D3 Effect - svgRef:', !!svgRef.current, 'dimensions:', dimensions, 'positions:', riderPositions.length);
+    if (!svgRef.current || dimensions.width === 0 || riderPositions.length === 0) {
+      console.log('D3 Effect - Skipping render');
+      return;
+    }
 
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove(); // Clear previous content
@@ -305,15 +330,36 @@ const IndianRidersProgressVertical: React.FC = () => {
   const finishedCount = riderPositions.filter(r => r.status === 'finished').length;
   const dnfCount = riderPositions.filter(r => r.status === 'dnf').length;
 
-  if (!rawTrackingData) {
+  if (loading.tracking || !rawTrackingData) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Loading...</CardTitle>
+          <CardTitle>Loading Indian Riders Data...</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (errors.tracking) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Error Loading Data</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-center text-red-600">{errors.tracking.message || 'Failed to load tracking data'}</p>
+          <div className="flex justify-center mt-4">
+            <button 
+              onClick={() => refreshTracking()}
+              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
+            >
+              Retry
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -364,7 +410,19 @@ const IndianRidersProgressVertical: React.FC = () => {
         </div>
       </CardHeader>
       <CardContent ref={containerRef} className="p-4 overflow-x-auto">
-        <svg ref={svgRef} width={dimensions.width} height={dimensions.height}></svg>
+        {dimensions.width === 0 || dimensions.height === 0 ? (
+          <div className="flex justify-center items-center h-[800px] bg-gray-50 rounded">
+            <p className="text-gray-500">Initializing visualization...</p>
+          </div>
+        ) : (
+          <svg ref={svgRef} width={dimensions.width} height={dimensions.height}></svg>
+        )}
+        {riderPositions.length === 0 && dimensions.width > 0 && (
+          <div className="mt-4 text-center text-gray-500">
+            <p>No active riders to display</p>
+            <p className="text-sm mt-2">Riders will appear here once they start the event</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

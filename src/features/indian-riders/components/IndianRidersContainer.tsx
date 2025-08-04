@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, Search, Loader2, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import { Clock, Search, Loader2, ChevronDown, ChevronUp, BarChart3, RefreshCw, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -133,6 +133,42 @@ export const IndianRidersContainer: React.FC = () => {
   
   return (
     <div className={`space-y-6 ${isDataStale ? 'bg-orange-50' : ''}`}>
+      {/* Floating Refresh Overlay */}
+      {isDataStale && !isRefreshing && (
+        <div 
+          className="fixed inset-0 z-40 pointer-events-none"
+          style={{ 
+            background: 'linear-gradient(to bottom, transparent 0%, transparent 70%, rgba(251, 146, 60, 0.05) 100%)'
+          }}
+        >
+          <button
+            onClick={handleRefresh}
+            className="fixed inset-0 w-full h-full cursor-pointer pointer-events-auto group"
+            aria-label="Refresh data"
+          >
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-orange-500 text-white px-8 py-4 rounded-lg shadow-lg flex items-center gap-3 transform transition-all duration-200 group-hover:scale-105 group-hover:bg-orange-600">
+                <RefreshCw className="h-6 w-6" />
+                <div className="text-left">
+                  <div className="font-semibold text-lg">Data is stale</div>
+                  <div className="text-sm opacity-90">Click anywhere to refresh</div>
+                </div>
+              </div>
+            </div>
+          </button>
+        </div>
+      )}
+      
+      {/* Loading Overlay */}
+      {isRefreshing && (
+        <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-center justify-center pointer-events-auto">
+          <div className="bg-white px-8 py-6 rounded-lg shadow-xl flex items-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+            <span className="text-lg font-medium">Refreshing data...</span>
+          </div>
+        </div>
+      )}
+      
       {/* Navigation to Progress View */}
       <div className="flex justify-end mb-4">
         <Link to="/indian-riders/progress">
