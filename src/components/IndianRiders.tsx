@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, Users, MapPin, Activity, Search, AlertCircle, CheckCircle, XCircle, Loader2, ChevronDown, ChevronUp, RefreshCw, TrendingUp } from 'lucide-react';
+import { Clock, Users, MapPin, Activity, Search, AlertCircle, CheckCircle, XCircle, Loader2, ChevronDown, ChevronUp, RefreshCw, TrendingUp, CloudRain, Cloud, Sun } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -49,6 +49,20 @@ interface Control {
   km: number;
   leg: 'North' | 'South';
 }
+
+// Weather data for controls
+interface WeatherData {
+  control: string;
+  condition: 'rain' | 'cloudy' | 'sunny';
+  temperature?: number;
+  description?: string;
+}
+
+// Current weather conditions at controls
+const CONTROL_WEATHER: WeatherData[] = [
+  { control: 'Malton', condition: 'rain', temperature: 12, description: 'Heavy rain' },
+  { control: 'Richmond', condition: 'rain', temperature: 11, description: 'Light rain' },
+];
 
 const IndianRiders: React.FC = () => {
   const { 
@@ -773,6 +787,43 @@ const IndianRiders: React.FC = () => {
                               <CardTitle className="text-base sm:text-lg font-semibold truncate">
                                 {control.name}
                               </CardTitle>
+                              {(() => {
+                                const weather = CONTROL_WEATHER.find(w => w.control === control.name);
+                                if (weather) {
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      {weather.condition === 'rain' && (
+                                        <>
+                                          <CloudRain className="h-4 w-4 text-blue-500" />
+                                          <span className="text-xs text-blue-600 font-medium">
+                                            {weather.description}
+                                            {weather.temperature && ` • ${weather.temperature}°C`}
+                                          </span>
+                                        </>
+                                      )}
+                                      {weather.condition === 'cloudy' && (
+                                        <>
+                                          <Cloud className="h-4 w-4 text-gray-500" />
+                                          <span className="text-xs text-gray-600">
+                                            Cloudy
+                                            {weather.temperature && ` • ${weather.temperature}°C`}
+                                          </span>
+                                        </>
+                                      )}
+                                      {weather.condition === 'sunny' && (
+                                        <>
+                                          <Sun className="h-4 w-4 text-yellow-500" />
+                                          <span className="text-xs text-yellow-600">
+                                            Sunny
+                                            {weather.temperature && ` • ${weather.temperature}°C`}
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
                               {hasLondonRiders && hasWrittleRiders && (
                                 <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                                   +20km for London start
@@ -884,6 +935,27 @@ const IndianRiders: React.FC = () => {
                     </CardHeader>
                     {isExpanded && riderCount > 0 && (
                       <CardContent className="pt-0 pb-3">
+                        {(() => {
+                          const weather = CONTROL_WEATHER.find(w => w.control === control.name);
+                          if (weather && weather.condition === 'rain') {
+                            return (
+                              <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div className="flex items-start gap-2">
+                                  <CloudRain className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                  <div className="flex-1">
+                                    <h4 className="text-sm font-semibold text-blue-900 mb-1">Weather Alert</h4>
+                                    <p className="text-xs text-blue-800">
+                                      {weather.description} expected at {control.name}. 
+                                      {weather.temperature && ` Temperature: ${weather.temperature}°C.`}
+                                      {' '}Riders should prepare appropriate rain gear and ride with extra caution.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                         <div className="mb-3 flex justify-between items-center gap-2">
                           <Button
                             variant="outline"
