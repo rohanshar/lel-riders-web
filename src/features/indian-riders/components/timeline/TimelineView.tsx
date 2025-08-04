@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader } from '@/components/ui/card';
 import type { Rider } from '../../types';
-import type { Control } from '../../types/weather';
 import { ControlCard } from './ControlCard';
 import { useControlsData } from '../../hooks/useControlsData';
 import { useWeatherData } from '../../hooks/useWeatherData';
@@ -28,9 +27,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [showAllRiders, setShowAllRiders] = useState<Record<string, boolean>>({});
   const [showPassedControls, setShowPassedControls] = useState(false);
+  const [showFutureControls, setShowFutureControls] = useState(false);
   
   // Process controls and rider data
-  const { activeControls, passedControls } = useMemo(() => {
+  const { activeControls, passedControls, futureControls } = useMemo(() => {
     // Show all controls including return journey
     const controlsToShow = controls;
     
@@ -107,19 +107,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       };
     });
     
-    // Separate active and passed controls
+    // Separate controls into three categories: passed, active (with riders), and future (empty)
     const active: typeof processedControls = [];
     const passed: typeof processedControls = [];
+    const future: typeof processedControls = [];
     
     processedControls.forEach(controlData => {
       if (controlData.isPassed) {
         passed.push(controlData);
+      } else if (controlData.ridersAtControl.length === 0) {
+        // No riders have reached this control yet
+        future.push(controlData);
       } else {
+        // Has riders currently at or have passed through
         active.push(controlData);
       }
     });
     
-    return { activeControls: active, passedControls: passed };
+    return { activeControls: active, passedControls: passed, futureControls: future };
   }, [controls, riders]);
   
   const toggleCardExpansion = (cardId: string) => {
@@ -252,6 +257,83 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           weather={isStart ? null : getWeatherForControl(control.name)}
         />
       ))}
+      
+      {/* Future Controls - Collapsed as a single group */}
+      {futureControls.length > 0 && (
+        <div className="mt-4">
+          {!showFutureControls ? (
+            <Card 
+              className="cursor-pointer hover:shadow-md transition-all duration-200 bg-gray-50"
+              onClick={() => setShowFutureControls(true)}
+            >
+              <CardHeader className="p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      {futureControls.map((_, index) => (
+                        <div key={index} className="w-2 h-2 rounded-full bg-gray-300"></div>
+                      ))}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-600">
+                        {futureControls.length} Future Control{futureControls.length > 1 ? 's' : ''}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {futureControls.map(fc => fc.control.name).join(' • ')} • Click to expand
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </div>
+              </CardHeader>
+            </Card>
+          ) : (
+            <>
+              {/* Collapse button */}
+              <div 
+                className="flex items-center justify-end mb-2 cursor-pointer text-xs text-gray-500 hover:text-gray-700"
+                onClick={() => setShowFutureControls(false)}
+              >
+                <span>Hide future controls</span>
+                <ChevronUp className="h-3 w-3 ml-1" />
+              </div>
+              {/* Render future controls */}
+              {futureControls.map(({
+                control,
+                ridersAtControl,
+                currentRiderCount,
+                hasLondonRiders,
+                hasWrittleRiders,
+                isStart,
+                isLast,
+                cardId
+              }) => (
+                <div key={cardId} className="mb-2">
+                  <ControlCard
+                    control={control}
+                    ridersAtControl={ridersAtControl}
+                    currentRiderCount={currentRiderCount}
+                    hasLondonRiders={hasLondonRiders}
+                    hasWrittleRiders={hasWrittleRiders}
+                    isStart={isStart}
+                    isLast={isLast}
+                    isExpanded={expandedCards.has(cardId)}
+                    onToggleExpansion={() => toggleCardExpansion(cardId)}
+                    searchTerm={searchTerm}
+                    onSearch={onSearch}
+                    showAllRiders={showAllRiders[cardId] || false}
+                    onToggleShowAll={() => toggleShowAllRiders(cardId)}
+                    selectedRiderId={selectedRiderId}
+                    onSelectRider={onSelectRider}
+                    allRiders={riders}
+                    weather={isStart ? null : getWeatherForControl(control.name)}
+                  />
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
