@@ -52,7 +52,11 @@ export const useIndianRidersData = (): UseIndianRidersDataReturn => {
   // Get last update time
   const lastUpdateTime = useMemo(() => {
     if (!rawTrackingData) return null;
-    return new Date(rawTrackingData.lastUpdate || Date.now());
+    // API uses 'last_updated' field
+    if (rawTrackingData.last_updated) {
+      return new Date(rawTrackingData.last_updated);
+    }
+    return null;
   }, [rawTrackingData]);
   
   // Refresh function
