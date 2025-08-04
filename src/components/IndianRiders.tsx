@@ -699,6 +699,7 @@ const IndianRiders: React.FC = () => {
                               checkpoint: Checkpoint | undefined;
                               elapsedMinutes: number;
                               elapsedFormatted: string;
+                              hasProgressedBeyond?: boolean;
                             }
                             
                             const ridersWithElapsedTime = ridersAtControl.map((rider: Rider): RiderWithElapsedTime => {
@@ -712,6 +713,15 @@ const IndianRiders: React.FC = () => {
                                 return cp.name === control.name || 
                                        cp.name.includes(control.name);
                               });
+                              
+                              // Check if rider has progressed beyond this control
+                              const currentControlIndex = rider.checkpoints.findIndex(cp => {
+                                if (isStart) {
+                                  return cp.name === 'Start' || cp.name === 'Writtle' || cp.name === 'London';
+                                }
+                                return cp.name === control.name || cp.name.includes(control.name);
+                              });
+                              const hasProgressedBeyond = currentControlIndex >= 0 && currentControlIndex < rider.checkpoints.length - 1;
                               
                               // Calculate elapsed time directly
                               let elapsedMinutes = 0;
@@ -736,7 +746,8 @@ const IndianRiders: React.FC = () => {
                                 rider,
                                 checkpoint,
                                 elapsedMinutes,
-                                elapsedFormatted
+                                elapsedFormatted,
+                                hasProgressedBeyond
                               };
                             }).filter((item: RiderWithElapsedTime) => item.checkpoint);
                             
@@ -759,13 +770,15 @@ const IndianRiders: React.FC = () => {
                               });
                             }
                             
-                            return ridersWithElapsedTime.map(({ rider, checkpoint, elapsedFormatted, elapsedMinutes }: RiderWithElapsedTime, index: number) => {
+                            return ridersWithElapsedTime.map(({ rider, checkpoint, elapsedFormatted, elapsedMinutes, hasProgressedBeyond }: RiderWithElapsedTime, index: number) => {
                               if (!checkpoint) return null;
 
                               return (
                                 <div 
                                   key={rider.rider_no} 
-                                  className="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer text-sm"
+                                  className={`flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer text-sm ${
+                                    hasProgressedBeyond ? 'opacity-60' : ''
+                                  }`}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedRider(rider);
@@ -778,6 +791,14 @@ const IndianRiders: React.FC = () => {
                                     {getStatusIcon(rider.status)}
                                     <span className="font-medium">{formatRiderName(rider.name, rider.rider_no)}</span>
                                     <span className="text-xs text-muted-foreground">({rider.rider_no})</span>
+                                    {hasProgressedBeyond && (
+                                      <span className="text-xs text-muted-foreground flex items-center gap-1" title="Rider has progressed to a later control">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                        </svg>
+                                        moved on
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-4 text-xs">
                                     <span className="text-muted-foreground">
