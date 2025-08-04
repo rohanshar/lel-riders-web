@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, Search, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Clock, Search, Loader2, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import IndianRidersProgressAlt from '@/components/IndianRidersProgressAlt';
+// Progress view moved to separate route
 
 // Local components
 import { StatisticsPanel } from './statistics/StatisticsPanel';
@@ -35,7 +36,7 @@ export const IndianRidersContainer: React.FC = () => {
   const [selectedRider, setSelectedRider] = useState<any>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [londonTime, setLondonTime] = useState(getCurrentUKTime());
-  const [activeTab, setActiveTab] = useState("timeline");
+  // Removed tabs - progress view moved to separate route
   const [isStatsExpanded, setIsStatsExpanded] = useState(false);
   
   // Update London time every second
@@ -49,22 +50,43 @@ export const IndianRidersContainer: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
   
-  // Calculate time since last update
-  const timeSinceUpdate = useMemo(() => {
-    if (!lastUpdateTime) return 'Never';
+  // Dynamic time since last update
+  const [timeSinceUpdate, setTimeSinceUpdate] = useState<string>('Never');
+  
+  useEffect(() => {
+    const updateTimer = () => {
+      if (!lastUpdateTime) {
+        setTimeSinceUpdate('Never');
+        return;
+      }
+      
+      const now = new Date();
+      const diff = now.getTime() - lastUpdateTime.getTime();
+      const seconds = Math.floor(diff / 1000);
+      const minutes = Math.floor(seconds / 60);
+      
+      if (seconds < 60) {
+        setTimeSinceUpdate(`${seconds}s ago`);
+      } else if (minutes < 60) {
+        const secs = seconds % 60;
+        if (minutes === 1) {
+          setTimeSinceUpdate(`1 min ${secs}s ago`);
+        } else {
+          setTimeSinceUpdate(`${minutes} mins ${secs}s ago`);
+        }
+      } else if (minutes < 24 * 60) {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        setTimeSinceUpdate(`${hours}h ${mins}m ago`);
+      } else {
+        const days = Math.floor(minutes / (24 * 60));
+        setTimeSinceUpdate(`${days} day${days === 1 ? '' : 's'} ago`);
+      }
+    };
     
-    const now = new Date();
-    const diff = now.getTime() - lastUpdateTime.getTime();
-    const minutes = Math.floor(diff / 60000);
-    
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
-    
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-    
-    const days = Math.floor(hours / 24);
-    return `${days} day${days === 1 ? '' : 's'} ago`;
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
   }, [lastUpdateTime]);
   
   const handleRefresh = async () => {
@@ -111,13 +133,17 @@ export const IndianRidersContainer: React.FC = () => {
   
   return (
     <div className={`space-y-6 ${isDataStale ? 'bg-orange-50' : ''}`}>
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="progress">Progress View</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="timeline" className="space-y-6 mt-6">
+      {/* Navigation to Progress View */}
+      <div className="flex justify-end mb-4">
+        <Link to="/indian-riders/progress">
+          <Button variant="outline" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            View Progress Chart
+          </Button>
+        </Link>
+      </div>
+
+      <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -130,7 +156,7 @@ export const IndianRidersContainer: React.FC = () => {
           </div>
           
           {/* Statistics Panel - Collapsible */}
-          {activeTab === "timeline" && (
+          {(
             <Card>
               <CardHeader 
                 className="cursor-pointer"
@@ -216,12 +242,7 @@ export const IndianRidersContainer: React.FC = () => {
             onClose={() => setSelectedRider(null)}
             allRiders={filteredRiders}
           />
-        </TabsContent>
-        
-        <TabsContent value="progress" className="mt-6">
-          <IndianRidersProgressAlt />
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   );
 };

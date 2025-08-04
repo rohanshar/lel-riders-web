@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TrendingUp, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +17,33 @@ interface LatestUpdatesCardProps {
 }
 
 export const LatestUpdatesCard: React.FC<LatestUpdatesCardProps> = ({ updates }) => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+  
   if (updates.length === 0) return null;
+  
+  const getTimeAgo = (timestamp: Date) => {
+    const diff = currentTime.getTime() - timestamp.getTime();
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    
+    if (seconds < 60) {
+      return `${seconds}s ago`;
+    } else if (minutes < 60) {
+      const secs = seconds % 60;
+      return minutes === 1 ? `1 min ${secs}s ago` : `${minutes} mins ${secs}s ago`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${hours}h ${mins}m ago`;
+    }
+  };
   
   return (
     <Card className="overflow-hidden">
@@ -42,10 +68,7 @@ export const LatestUpdatesCard: React.FC<LatestUpdatesCardProps> = ({ updates })
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <Badge variant="outline" className="text-xs px-1.5 py-0 shrink-0">
-                  {update.minutesAgo < 60 
-                    ? `${update.minutesAgo}m ago`
-                    : `${Math.floor(update.minutesAgo / 60)}h ${update.minutesAgo % 60}m ago`
-                  }
+                  {getTimeAgo(update.timestamp)}
                 </Badge>
                 <span className="font-medium truncate">
                   {update.riderName}

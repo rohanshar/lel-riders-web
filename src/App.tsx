@@ -5,6 +5,7 @@ import WavesSummary from './components/WavesSummary';
 import WaveDetail from './components/WaveDetail';
 import RidersList from './components/RidersList';
 import IndianRidersTimeline from './components/IndianRidersTimeline';
+import IndianRidersProgressPage from './components/IndianRidersProgressPage';
 import RouteMap from './components/RouteMap';
 import { Menu, X, Users, Flag, Home, Grid3x3, Map } from 'lucide-react';
 import { usePageTracking } from './hooks/useAnalytics';
@@ -137,6 +138,7 @@ function AppContent() {
               <Route path="/route" element={<AsyncBoundary><RouteMap /></AsyncBoundary>} />
               <Route path="/all-riders" element={<AsyncBoundary><RidersList /></AsyncBoundary>} />
               <Route path="/indian-riders" element={<AsyncBoundary><IndianRidersTimeline /></AsyncBoundary>} />
+              <Route path="/indian-riders/progress" element={<AsyncBoundary><IndianRidersProgressPage /></AsyncBoundary>} />
             </Routes>
           </div>
         </main>
