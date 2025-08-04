@@ -679,18 +679,18 @@ const IndianRiders: React.FC = () => {
                 const londonDistance = LONDON_START_CONTROLS.find(c => c.name === control.name)?.km || 0;
 
                 return (
-                  <div key={cardId} className="flex gap-4 relative">
+                  <div key={cardId} className="flex gap-2 sm:gap-4 relative">
                     {/* Left side - Circle and Line */}
-                    <div className="flex flex-col items-center">
+                    <div className="flex flex-col items-center flex-shrink-0">
                       {/* Circle with KM */}
                       <div className={`
-                        w-14 h-14 rounded-full flex flex-col items-center justify-center z-10
+                        w-12 h-12 sm:w-14 sm:h-14 rounded-full flex flex-col items-center justify-center z-10
                         ${riderCount > 0 ? 'bg-primary text-primary-foreground' : 'bg-gray-200 text-gray-600'}
                         ${isStart ? 'ring-4 ring-primary/20' : ''}
                         transition-all duration-200
                       `}>
-                        <span className="text-xs font-bold">{isStart ? 'START' : `${writtleDistance}`}</span>
-                        {!isStart && <span className="text-[10px]">km</span>}
+                        <span className="text-[10px] sm:text-xs font-bold">{isStart ? 'START' : `${writtleDistance}`}</span>
+                        {!isStart && <span className="text-[8px] sm:text-[10px]">km</span>}
                       </div>
                       
                       {/* Connecting Line */}
@@ -698,43 +698,43 @@ const IndianRiders: React.FC = () => {
                         <div className={`
                           w-0.5 flex-1 mt-2
                           ${riderCount > 0 ? 'bg-primary/30' : 'bg-gray-200'}
-                        `} style={{ minHeight: '100px' }} />
+                        `} style={{ minHeight: isExpanded ? 'auto' : '80px' }} />
                       )}
                     </div>
 
                     {/* Right side - Control Card */}
                     <Card className={`
-                      flex-1 mb-6 overflow-hidden cursor-pointer
+                      flex-1 mb-4 sm:mb-6 overflow-hidden cursor-pointer
                       ${riderCount === 0 ? 'opacity-60' : ''}
                       hover:shadow-md transition-all duration-200
                     `}
                     onClick={() => riderCount > 0 && toggleCardExpansion(cardId)}
                     >
-                      <CardHeader className="pb-3">
+                      <CardHeader className="p-3 sm:pb-3">
                         <div className="flex items-center justify-between">
-                          <div>
-                            <div className="flex items-center gap-3 mb-1">
-                              <CardTitle className="text-lg font-semibold">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 mb-1">
+                              <CardTitle className="text-base sm:text-lg font-semibold truncate">
                                 {control.name}
                               </CardTitle>
                               {hasLondonRiders && hasWrittleRiders && (
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">
                                   +20km for London start
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <Users className="h-3 w-3" />
                                 {riderCount} {riderCount === 1 ? 'rider' : 'riders'}
                               </span>
-                              <span>•</span>
+                              <span className="hidden sm:inline">•</span>
                               <span>{control.leg} Leg</span>
                             </div>
                           </div>
-                          <div className="flex items-center">
+                          <div className="flex items-center ml-2">
                             {riderCount > 0 && (
-                              isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />
+                              isExpanded ? <ChevronUp className="h-4 w-4 sm:h-5 sm:w-5" /> : <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5" />
                             )}
                           </div>
                         </div>
@@ -797,20 +797,20 @@ const IndianRiders: React.FC = () => {
                         if (sortedByArrival.length === 0) return null;
                         
                         return (
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-2">
+                          <div className="mt-2 text-[10px] sm:text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1 sm:gap-2">
                               <Activity className="h-3 w-3" />
                               <span>Latest arrivals:</span>
                             </div>
-                            <div className="ml-5 mt-1 space-y-0.5">
+                            <div className="ml-3 sm:ml-5 mt-1 space-y-0.5">
                               {sortedByArrival.map(({ rider, checkpoint }: RiderWithTimestamp) => {
                                 const timeAgo = calculateTimeAgo(checkpoint.time);
                                 return (
-                                  <div key={rider.rider_no} className="flex items-center gap-2">
-                                    <span>{rider.name.split(' ')[0]}</span>
+                                  <div key={rider.rider_no} className="flex flex-wrap items-center gap-1 sm:gap-2">
+                                    <span className="font-medium">{rider.name.split(' ')[0]}</span>
                                     <span className="text-muted-foreground">
                                       • {checkpoint.time}
-                                      {timeAgo && <span className="text-xs ml-1">({timeAgo})</span>}
+                                      {timeAgo && <span className="text-[9px] sm:text-xs ml-1">({timeAgo})</span>}
                                     </span>
                                   </div>
                                 );
