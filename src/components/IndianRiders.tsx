@@ -124,35 +124,48 @@ const IndianRiders: React.FC = () => {
       minutesAgo: number;
     }> = [];
 
+    // Event starts on Sunday August 3, 2025
+    const eventStartDate = new Date('2025-08-03');
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
     // Collect all checkpoint arrivals with timestamps
     trackingData.riders.forEach((rider: Rider) => {
-      rider.checkpoints.forEach((checkpoint: Checkpoint) => {
-        if (checkpoint.time) {
+      // Get only the last checkpoint for each rider (most recent update)
+      if (rider.checkpoints.length > 0) {
+        const lastCheckpoint = rider.checkpoints[rider.checkpoints.length - 1];
+        
+        if (lastCheckpoint.time) {
           // Parse the checkpoint time
           const now = new Date();
           let checkpointDate: Date;
           
-          if (checkpoint.time.includes('/')) {
+          if (lastCheckpoint.time.includes('/')) {
             // Format: "3/8 19:32"
-            const [date, time] = checkpoint.time.split(' ');
+            const [date, time] = lastCheckpoint.time.split(' ');
             const [day, month] = date.split('/');
             const [hours, minutes] = time.split(':');
             const year = now.getFullYear();
             checkpointDate = new Date(year, parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes));
           } else {
-            // Format: "Sunday 08:46" - assume it's within the last week
-            const timeMatch = checkpoint.time.match(/(\d+):(\d+)/);
-            if (timeMatch) {
-              const [_, hours, minutes] = timeMatch;
-              checkpointDate = new Date();
-              checkpointDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+            // Format: "Sunday 08:46" or "Monday 02:29"
+            const parts = lastCheckpoint.time.split(' ');
+            const dayName = parts[0];
+            const timeStr = parts[parts.length - 1];
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            
+            // Calculate which day this is relative to event start
+            const eventDayIndex = eventStartDate.getDay(); // 0 = Sunday
+            const checkpointDayIndex = dayNames.indexOf(dayName);
+            
+            if (checkpointDayIndex >= 0) {
+              let dayOffset = checkpointDayIndex - eventDayIndex;
+              if (dayOffset < 0) dayOffset += 7;
               
-              // If the time is in the future, assume it was yesterday
-              if (checkpointDate > now) {
-                checkpointDate.setDate(checkpointDate.getDate() - 1);
-              }
+              checkpointDate = new Date(eventStartDate);
+              checkpointDate.setDate(checkpointDate.getDate() + dayOffset);
+              checkpointDate.setHours(hours, minutes, 0, 0);
             } else {
-              return; // Skip if we can't parse the time
+              return; // Skip if we can't parse the day
             }
           }
 
@@ -163,14 +176,14 @@ const IndianRiders: React.FC = () => {
             updates.push({
               riderName: rider.name,
               riderNo: rider.rider_no,
-              checkpoint: checkpoint.name,
-              time: checkpoint.time,
+              checkpoint: lastCheckpoint.name,
+              time: lastCheckpoint.time,
               timestamp: checkpointDate,
               minutesAgo
             });
           }
         }
-      });
+      }
     });
 
     // Sort by most recent first and take top 25
