@@ -14,9 +14,10 @@ interface LatestUpdate {
 
 interface LatestUpdatesCardProps {
   updates: LatestUpdate[];
+  onSelectRider?: (riderId: string) => void;
 }
 
-export const LatestUpdatesCard: React.FC<LatestUpdatesCardProps> = ({ updates }) => {
+export const LatestUpdatesCard: React.FC<LatestUpdatesCardProps> = ({ updates, onSelectRider }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   
   useEffect(() => {
@@ -83,7 +84,10 @@ export const LatestUpdatesCard: React.FC<LatestUpdatesCardProps> = ({ updates })
           {updates.map((update, index) => (
             <div 
               key={`${update.riderNo}-${update.checkpoint}-${index}`}
-              className="flex items-center justify-between text-xs py-1.5 px-2 rounded hover:bg-gray-50 transition-colors"
+              className={`flex items-center justify-between text-xs py-1.5 px-2 rounded transition-colors ${
+                onSelectRider ? 'hover:bg-gray-50 cursor-pointer' : ''
+              }`}
+              onClick={() => onSelectRider?.(update.riderNo)}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <Badge variant="outline" className="text-xs px-1.5 py-0 shrink-0">

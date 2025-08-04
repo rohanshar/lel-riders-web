@@ -44,29 +44,43 @@ export const calculateAverageSpeed = (rider: Rider): number => {
   const startCheckpoint = rider.checkpoints[0];
   const lastCheckpoint = rider.checkpoints[rider.checkpoints.length - 1];
   
-  // Calculate elapsed time between actual start and last checkpoint
-  const startTime = startCheckpoint.time;
-  const lastTime = lastCheckpoint.time;
-  
-  // Parse times - both are in "Sunday HH:MM" format
-  const parseTime = (timeStr: string): number => {
+  // Calculate elapsed time using proper date parsing
+  const parseCheckpointDate = (timeStr: string): Date => {
     const parts = timeStr.split(' ');
-    const time = parts[parts.length - 1];
+    if (parts.length < 2) return new Date();
+    
+    const dayName = parts[0];
+    const time = parts[1];
     const [hours, minutes] = time.split(':').map(Number);
-    return hours * 60 + minutes;
+    
+    // Event starts on Sunday August 3, 2025
+    const eventStartDate = new Date('2025-08-03T00:00:00');
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayIndex = daysOfWeek.indexOf(dayName);
+    
+    if (dayIndex !== -1) {
+      const checkpointDate = new Date(eventStartDate);
+      // Calculate days from start (Sunday = 0, Monday = 1, etc.)
+      let daysFromStart = dayIndex;
+      // Handle week wraparound if needed
+      if (daysFromStart < 0) daysFromStart += 7;
+      
+      checkpointDate.setDate(eventStartDate.getDate() + daysFromStart);
+      checkpointDate.setHours(hours, minutes, 0, 0);
+      return checkpointDate;
+    }
+    
+    return new Date();
   };
   
-  const startMinutes = parseTime(startTime);
-  const lastMinutes = parseTime(lastTime);
-  let elapsedMinutes = lastMinutes - startMinutes;
+  const startDate = parseCheckpointDate(startCheckpoint.time);
+  const lastDate = parseCheckpointDate(lastCheckpoint.time);
   
-  // Handle day boundary
-  if (elapsedMinutes < 0) {
-    elapsedMinutes += 24 * 60;
-  }
+  const elapsedMs = lastDate.getTime() - startDate.getTime();
+  const elapsedHours = elapsedMs / (1000 * 60 * 60);
   
-  if (elapsedMinutes > 0) {
-    return (currentDistance / elapsedMinutes) * 60; // km/h
+  if (elapsedHours > 0) {
+    return currentDistance / elapsedHours; // km/h
   }
   
   return 0;

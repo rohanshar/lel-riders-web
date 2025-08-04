@@ -108,7 +108,7 @@ export const IndianRidersContainer: React.FC = () => {
   
   const handleSelectRider = (riderId: string | null) => {
     if (riderId) {
-      const rider = filteredRiders.find(r => r.rider_no === riderId);
+      const rider = riders.find(r => r.rider_no === riderId);
       setSelectedRider(rider || null);
     } else {
       setSelectedRider(null);
@@ -277,13 +277,13 @@ export const IndianRidersContainer: React.FC = () => {
           </div>
           
           {/* Latest Updates */}
-          <LatestUpdatesCard updates={latestUpdates} />
+          <LatestUpdatesCard updates={latestUpdates} onSelectRider={handleSelectRider} />
           
           {/* Rider Detail Dialog */}
           <RiderDetailDialog
             rider={selectedRider}
             onClose={() => setSelectedRider(null)}
-            allRiders={filteredRiders}
+            allRiders={riders}
           />
       </div>
     </div>
