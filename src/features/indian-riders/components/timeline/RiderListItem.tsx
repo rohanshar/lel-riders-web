@@ -1,5 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Instagram } from 'lucide-react';
 import type { Rider, Checkpoint } from '../../types';
 import { formatRiderName } from '../../utils/formatters';
 import { calculateTimeAgo } from '../../utils/riderCalculations';
@@ -35,20 +36,27 @@ export const RiderListItem: React.FC<RiderListItemProps> = ({
 
   // Determine background color based on status
   let bgColor = '';
+  let borderClass = '';
+  
   if (isDNF) {
     bgColor = 'bg-red-50';
   } else if (averageSpeed && averageSpeed < 15 && rider.status === 'in_progress') {
     bgColor = 'bg-yellow-50';
   }
+  
   if (isSelected) {
     bgColor = 'bg-blue-100';
+  } else if (rider.instagram) {
+    // Subtle highlight for riders with Instagram
+    bgColor = bgColor || 'bg-gradient-to-r from-pink-50 to-purple-50';
+    borderClass = 'border-l-2 border-pink-300';
   }
 
   return (
     <div 
       className={`flex items-center justify-between px-1 sm:px-2 py-1 sm:py-1.5 rounded hover:bg-gray-50 cursor-pointer text-sm ${
         hasProgressedBeyond ? 'opacity-60' : ''
-      } ${bgColor} transition-colors`}
+      } ${bgColor} ${borderClass} transition-colors`}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();
@@ -62,6 +70,18 @@ export const RiderListItem: React.FC<RiderListItemProps> = ({
           {formatRiderName(rider.name, rider.rider_no)}
         </span>
         <span className="hidden sm:inline text-xs text-muted-foreground flex-shrink-0">({rider.rider_no})</span>
+        {rider.instagram && (
+          <a
+            href={rider.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex-shrink-0 p-1 hover:bg-gray-200 rounded transition-colors"
+            title={`Follow ${rider.name.split(' ')[0]} on Instagram`}
+          >
+            <Instagram className="w-3 h-3 text-pink-600 hover:text-pink-700" />
+          </a>
+        )}
         {isDNF && (
           <Badge className="bg-red-500 text-white text-[10px] sm:text-xs px-1 sm:px-1.5 py-0 flex-shrink-0" title="No update for 16+ hours">DNF</Badge>
         )}

@@ -19,6 +19,7 @@ export interface TrackingRider {
   elapsed_time?: number;
   average_speed?: number;
   estimated_distance?: number;
+  instagram?: string; // Instagram profile URL
 }
 
 // Alias for compatibility

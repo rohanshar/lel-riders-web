@@ -36,6 +36,7 @@ export interface TrackingRider extends EnhancedRider {
   elapsedMinutes: number;
   averageSpeed: number;
   progress: number;
+  instagram?: string; // Instagram profile URL
 }
 
 /**
@@ -48,6 +49,7 @@ export interface RawTrackingRider {
   checkpoints: Array<{ name: string; time: string }>;
   distance_km: number;
   last_checkpoint: string | null;
+  instagram?: string; // Instagram profile URL
 }
 
 /**
@@ -262,7 +264,8 @@ export function processTrackingRider(
     estimatedDistance,
     elapsedMinutes,
     averageSpeed,
-    progress
+    progress,
+    instagram: rawRider.instagram // Pass through Instagram URL
   };
 }
 
