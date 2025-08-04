@@ -654,21 +654,77 @@ const IndianRiders: React.FC = () => {
                         </div>
                       </div>
                       {!isExpanded && riderCount > 0 && (() => {
-                        // Get latest 3 arrivals
-                        const sortedByArrival = [...ridersAtControl].sort((a: Rider, b: Rider) => {
-                          const aTime = a.checkpoints.find((cp: Checkpoint) => 
+                        // Define types for the parsed data
+                        interface RiderWithTimestamp {
+                          rider: Rider;
+                          checkpoint: Checkpoint;
+                          timestamp: Date | null;
+                        }
+                        
+                        // Get latest 3 arrivals with proper time parsing
+                        const ridersWithParsedTimes = ridersAtControl.map((rider: Rider): RiderWithTimestamp | null => {
+                          const checkpoint = rider.checkpoints.find((cp: Checkpoint) => 
                             cp.name === control.name || cp.name.includes(control.name)
-                          )?.time || '';
-                          const bTime = b.checkpoints.find((cp: Checkpoint) => 
-                            cp.name === control.name || cp.name.includes(control.name)
-                          )?.time || '';
-                          return bTime.localeCompare(aTime);
-                        }).slice(0, 3);
+                          );
+                          
+                          if (!checkpoint?.time) return null;
+                          
+                          // Parse checkpoint time to get proper timestamp
+                          let timestamp: Date | null = null;
+                          
+                          if (checkpoint.time.includes('/')) {
+                            // Format: "3/8 19:32"
+                            const [date, time] = checkpoint.time.split(' ');
+                            const [day, month] = date.split('/');
+                            const [hours, minutes] = time.split(':');
+                            timestamp = new Date(2025, parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes));
+                          } else {
+                            // Format: "Sunday 08:46" or "Monday 02:29"
+                            const parts = checkpoint.time.split(' ');
+                            const dayName = parts[0];
+                            const timeStr = parts[parts.length - 1];
+                            const [hours, minutes] = timeStr.split(':').map(Number);
+                            
+                            // Event starts on Sunday August 3, 2025
+                            const eventStartDate = new Date('2025-08-03');
+                            const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                            const eventDayIndex = eventStartDate.getDay();
+                            const checkpointDayIndex = dayNames.indexOf(dayName);
+                            
+                            if (checkpointDayIndex >= 0) {
+                              let dayOffset = checkpointDayIndex - eventDayIndex;
+                              if (dayOffset < 0) dayOffset += 7;
+                              
+                              timestamp = new Date(eventStartDate);
+                              timestamp.setDate(timestamp.getDate() + dayOffset);
+                              timestamp.setHours(hours, minutes, 0, 0);
+                            }
+                          }
+                          
+                          return { rider, checkpoint, timestamp };
+                        }).filter((item: RiderWithTimestamp | null): item is RiderWithTimestamp => item !== null && item.timestamp !== null);
+                        
+                        // Sort by actual timestamp, most recent first
+                        const sortedByArrival = ridersWithParsedTimes
+                          .sort((a: RiderWithTimestamp, b: RiderWithTimestamp) => b.timestamp!.getTime() - a.timestamp!.getTime())
+                          .slice(0, 3);
+                        
+                        if (sortedByArrival.length === 0) return null;
                         
                         return (
-                          <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2">
-                            <Activity className="h-3 w-3" />
-                            <span>Latest: {sortedByArrival.map(r => r.name.split(' ')[0]).join(', ')}</span>
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              <Activity className="h-3 w-3" />
+                              <span>Latest arrivals:</span>
+                            </div>
+                            <div className="ml-5 mt-1 space-y-0.5">
+                              {sortedByArrival.map(({ rider, checkpoint }: RiderWithTimestamp) => (
+                                <div key={rider.rider_no} className="flex items-center gap-2">
+                                  <span>{rider.name.split(' ')[0]}</span>
+                                  <span className="text-muted-foreground">• {checkpoint.time}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         );
                       })()}
@@ -792,11 +848,10 @@ const IndianRiders: React.FC = () => {
                                     <span className="font-medium">{formatRiderName(rider.name, rider.rider_no)}</span>
                                     <span className="text-xs text-muted-foreground">({rider.rider_no})</span>
                                     {hasProgressedBeyond && (
-                                      <span className="text-xs text-muted-foreground flex items-center gap-1" title="Rider has progressed to a later control">
+                                      <span className="text-xs text-muted-foreground" title="Rider has progressed to a later control">
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                         </svg>
-                                        moved on
                                       </span>
                                     )}
                                   </div>
