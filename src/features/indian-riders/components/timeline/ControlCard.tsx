@@ -65,9 +65,13 @@ export const ControlCard: React.FC<ControlCardProps> = ({
     
     // Parse times and sort by arrival
     const ridersWithParsedTimes = ridersAtControl.map((rider: Rider): RiderWithTimestamp | null => {
-      const checkpoint = rider.checkpoints.find((cp: Checkpoint) => 
-        cp.name === control.name || cp.name.includes(control.name)
-      );
+      const checkpoint = rider.checkpoints.find((cp: Checkpoint) => {
+        // Match checkpoints with proper direction
+        if (control.isReturn) {
+          return cp.name === `${control.name} S` || cp.name === control.name;
+        }
+        return cp.name === `${control.name} N` || cp.name === control.name;
+      });
       
       if (!checkpoint?.time) return null;
       
@@ -140,6 +144,7 @@ export const ControlCard: React.FC<ControlCardProps> = ({
       <Card className={`
         flex-1 mb-3 sm:mb-6 overflow-hidden cursor-pointer
         ${riderCount === 0 ? 'opacity-60' : ''}
+        ${control.isReturn ? 'border-orange-200 bg-orange-50/30' : ''}
         hover:shadow-md transition-all duration-200
       `}
       onClick={() => onToggleExpansion()}
@@ -150,6 +155,7 @@ export const ControlCard: React.FC<ControlCardProps> = ({
               <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3 mb-1">
                 <CardTitle className="text-base sm:text-lg font-semibold truncate">
                   {control.name}
+                  {control.isReturn && <span className="text-sm font-normal text-orange-600 ml-2">(Return)</span>}
                 </CardTitle>
                 {!isStart && (
                   <span className="hidden sm:inline text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap">

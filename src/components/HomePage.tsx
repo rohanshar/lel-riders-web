@@ -130,17 +130,61 @@ const HomePage: React.FC = () => {
         </Link>
       </div>
 
+      {/* Ultra-Rides Promotion Banner */}
+      <div className="mt-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-8 text-white">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="text-center md:text-left flex-1">
+            <h3 className="text-2xl font-bold mb-3">Connect with Epic Cycling Events</h3>
+            <p className="text-lg mb-2">
+              Join a community of passionate riders. Earn homologations, digital certificates, 
+              and build your legacy of achievement on two wheels.
+            </p>
+            <p className="text-sm opacity-90">
+              Discover ultra-distance challenges, local clubs, and cycling events across India
+            </p>
+          </div>
+          <div className="flex flex-col items-center gap-4">
+            <img 
+              src="/ultra-rides-logo.png" 
+              alt="UltraRides" 
+              className="h-16 w-auto"
+            />
+            <a 
+              href="https://www.ultra-rides.com/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-block bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-all hover:scale-105 shadow-lg"
+            >
+              Explore UltraRides →
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Enduroco Branding */}
       <div className="mt-12 text-center border-t pt-8">
-        <p className="text-sm text-muted-foreground mb-2">Powered by</p>
-        <a href="https://enduroco.in" target="_blank" rel="noopener noreferrer" className="inline-block">
-          <img 
-            src="https://www.enduroco.in/static/media/logo_orange.af42cec0c79a012b7028.png" 
-            alt="Enduroco" 
-            className="h-10 w-auto mx-auto opacity-80 hover:opacity-100 transition-opacity"
-          />
-        </a>
-        <p className="text-xs text-muted-foreground mt-2">Your endurance cycling companion</p>
+        <p className="text-sm text-muted-foreground mb-4">Brought to you by</p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
+          <a href="https://enduroco.in" target="_blank" rel="noopener noreferrer" className="group">
+            <img 
+              src="https://www.enduroco.in/static/media/logo_orange.af42cec0c79a012b7028.png" 
+              alt="Enduroco" 
+              className="h-10 w-auto opacity-80 group-hover:opacity-100 transition-opacity"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Your endurance cycling companion</p>
+          </a>
+          <div className="hidden sm:block h-12 w-px bg-gray-300"></div>
+          <a href="https://www.ultra-rides.com/" target="_blank" rel="noopener noreferrer" className="group">
+            <div className="text-center">
+              <img 
+                src="/ultra-rides-logo.png" 
+                alt="UltraRides" 
+                className="h-10 w-auto mx-auto opacity-80 group-hover:opacity-100 transition-opacity"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Where Every Ride Counts</p>
+            </div>
+          </a>
+        </div>
       </div>
     </div>
   );

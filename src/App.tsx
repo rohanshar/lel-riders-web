@@ -170,20 +170,43 @@ function AppContent() {
 
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="mb-4 md:mb-0">
-                <div className="flex items-center gap-3">
-                  <img 
-                    src="https://www.enduroco.in/static/media/logo_orange.af42cec0c79a012b7028.png" 
-                    alt="Enduroco" 
-                    className="h-8 w-auto"
-                  />
-                  <div>
-                    <p className="text-lg font-semibold">
-                      Enduroco<span className="text-orange-500">.in</span>
-                    </p>
-                    <p className="text-gray-400 text-sm">
-                      Your endurance cycling companion
-                    </p>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src="https://www.enduroco.in/static/media/logo_orange.af42cec0c79a012b7028.png" 
+                      alt="Enduroco" 
+                      className="h-8 w-auto"
+                    />
+                    <div>
+                      <p className="text-lg font-semibold">
+                        Enduroco<span className="text-orange-500">.in</span>
+                      </p>
+                      <p className="text-gray-400 text-sm">
+                        Your endurance cycling companion
+                      </p>
+                    </div>
                   </div>
+                  <div className="hidden sm:block h-8 w-px bg-gray-700"></div>
+                  <a 
+                    href="https://www.ultra-rides.com/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 group"
+                  >
+                    <img 
+                      src="/ultra-rides-logo.png" 
+                      alt="UltraRides" 
+                      className="h-8 w-auto opacity-80 group-hover:opacity-100 transition-opacity"
+                    />
+                    <div className="text-left">
+                      <p className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors">
+                        UltraRides
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Where Every Ride Counts
+                      </p>
+                    </div>
+                  </a>
                 </div>
               </div>
               <div className="text-center md:text-right">

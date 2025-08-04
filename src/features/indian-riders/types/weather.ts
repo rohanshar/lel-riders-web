@@ -10,4 +10,6 @@ export interface Control {
   name: string;
   km: number;
   leg: 'North' | 'South';
+  isReturn?: boolean;
+  description?: string;
 }

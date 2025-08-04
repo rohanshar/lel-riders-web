@@ -118,13 +118,26 @@ const RouteMap: React.FC = () => {
     allCoords.push(...route.coords);
   });
 
-  // Remove duplicate checkpoints based on checkpoint name
-  const uniqueCheckpoints = allCheckpoints.filter((checkpoint, index, self) =>
-    index === self.findIndex(cp => cp.checkpoint === checkpoint.checkpoint)
-  );
-
-  // Sort checkpoints by distance
-  const checkpoints = uniqueCheckpoints.sort((a, b) => a.dist - b.dist);
+  // Sort checkpoints by distance to maintain the order
+  const checkpoints = allCheckpoints.sort((a, b) => a.dist - b.dist);
+  
+  // Add return leg indicators to checkpoint names
+  const processedCheckpoints = checkpoints.map((checkpoint, index) => {
+    // Check if this is a return leg control by looking for duplicates
+    const sameNameCheckpoints = checkpoints.filter(cp => cp.checkpoint === checkpoint.checkpoint);
+    if (sameNameCheckpoints.length > 1) {
+      // This is a control visited twice (outbound and return)
+      const isReturn = checkpoint.dist > sameNameCheckpoints[0].dist;
+      return {
+        ...checkpoint,
+        displayName: isReturn ? `${checkpoint.checkpoint} (Return)` : checkpoint.checkpoint
+      };
+    }
+    return {
+      ...checkpoint,
+      displayName: checkpoint.checkpoint
+    };
+  });
   
   // Use the first route for display purposes
   const currentRoute = routes[0] || { coords: [], colour: '#3428e2' };
@@ -140,7 +153,7 @@ const RouteMap: React.FC = () => {
             LEL 2025 Route Map
           </CardTitle>
           <CardDescription>
-            Interactive map showing the full 1540km route from London to Edinburgh and back
+            Interactive map showing the full route from London/Writtle to Edinburgh and back (1537-1557km)
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -167,15 +180,15 @@ const RouteMap: React.FC = () => {
               ))}
               
               {/* Checkpoint markers */}
-              {checkpoints.map((checkpoint, index) => (
+              {processedCheckpoints.map((checkpoint, index) => (
                 <Marker
-                  key={checkpoint.id}
+                  key={`${checkpoint.id}-${index}`}
                   position={[checkpoint.lat, checkpoint.lon]}
                   icon={createNumberedIcon(index + 1)}
                 >
                   <Popup>
                     <div className="p-2">
-                      <h3 className="font-bold text-lg">#{index + 1} - {checkpoint.checkpoint}</h3>
+                      <h3 className="font-bold text-lg">#{index + 1} - {checkpoint.displayName}</h3>
                       <p className="text-sm">Distance: {checkpoint.dist.toFixed(1)} km</p>
                       <p className="text-sm">Elevation: {checkpoint.elev.toFixed(0)} m</p>
                     </div>
@@ -194,26 +207,38 @@ const RouteMap: React.FC = () => {
         <CardHeader>
           <CardTitle>Control Points</CardTitle>
           <CardDescription>
-            Major checkpoints along the route where riders must check in
+            All checkpoints along the route including both outbound and return journey
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {checkpoints.map((checkpoint, index) => (
-              <div key={checkpoint.id} className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:shadow-md transition-shadow">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-sm font-bold text-primary">{index + 1}</span>
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold">{checkpoint.checkpoint}</h4>
-                  <div className="flex gap-3 text-sm text-muted-foreground">
-                    <span>{checkpoint.dist.toFixed(1)} km</span>
-                    <span>•</span>
-                    <span>{checkpoint.elev.toFixed(0)}m elev</span>
+            {processedCheckpoints.map((checkpoint, index) => {
+              const isReturn = checkpoint.displayName?.includes('(Return)');
+              return (
+                <div 
+                  key={`${checkpoint.id}-${index}`} 
+                  className={`flex items-center gap-3 p-3 rounded-lg border bg-card hover:shadow-md transition-shadow ${
+                    isReturn ? 'border-orange-200 bg-orange-50/50' : ''
+                  }`}
+                >
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                    isReturn ? 'bg-orange-500/10' : 'bg-primary/10'
+                  }`}>
+                    <span className={`text-sm font-bold ${isReturn ? 'text-orange-600' : 'text-primary'}`}>
+                      {index + 1}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold">{checkpoint.displayName}</h4>
+                    <div className="flex gap-3 text-sm text-muted-foreground">
+                      <span>{checkpoint.dist.toFixed(1)} km</span>
+                      <span>•</span>
+                      <span>{checkpoint.elev.toFixed(0)}m elev</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>

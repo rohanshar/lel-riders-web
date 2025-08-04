@@ -31,8 +31,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   
   // Process controls and rider data
   const { activeControls, passedControls } = useMemo(() => {
-    // First 10 controls for London-Edinburgh journey
-    const controlsToShow = controls.slice(0, 10);
+    // Show all controls including return journey
+    const controlsToShow = controls;
     
     const processedControls = controlsToShow.map((control, index) => {
       const isStart = control.name === 'Start' || index === 0;
@@ -40,7 +40,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       
       // Get riders at this control
       const ridersAtControl = riders.filter((rider: Rider) => {
-        if (isStart) {
+        if (control.name === 'Writtle' && control.km === 0) {
+          // This is the start control
           return rider.checkpoints.some(cp => 
             cp.name === 'Start' || 
             cp.name === 'Writtle' || 
@@ -48,25 +49,35 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             cp.name.includes('Start')
           );
         }
-        return rider.checkpoints.some(cp => 
-          cp.name === control.name || 
-          cp.name.includes(control.name)
-        );
+        
+        // For other controls, match by name and direction
+        return rider.checkpoints.some(cp => {
+          // For return controls, only match southbound checkpoints (with "S" suffix)
+          if (control.isReturn) {
+            return cp.name === `${control.name} S` || cp.name === control.name;
+          }
+          // For northbound controls, match northbound checkpoints (with "N" suffix) or exact name
+          return cp.name === `${control.name} N` || cp.name === control.name;
+        });
       });
       
       // Count riders currently at this control
       const currentRiderCount = ridersAtControl.filter((rider: Rider) => {
         const lastCheckpoint = rider.checkpoints[rider.checkpoints.length - 1];
-        if (isStart) {
-          return lastCheckpoint && (
-            lastCheckpoint.name === 'Start' || 
+        if (!lastCheckpoint) return false;
+        
+        if (control.name === 'Writtle' && control.km === 0) {
+          // This is the start control
+          return lastCheckpoint.name === 'Start' || 
             lastCheckpoint.name === 'Writtle' || 
-            lastCheckpoint.name === 'London'
-          );
+            lastCheckpoint.name === 'London';
         }
-        return lastCheckpoint && 
-          (lastCheckpoint.name === control.name || 
-           lastCheckpoint.name.includes(control.name));
+        
+        // For other controls, check if this is their current location with proper direction
+        if (control.isReturn) {
+          return lastCheckpoint.name === `${control.name} S` || lastCheckpoint.name === control.name;
+        }
+        return lastCheckpoint.name === `${control.name} N` || lastCheckpoint.name === control.name;
       }).length;
       
       // Check if we have both London and Writtle riders
