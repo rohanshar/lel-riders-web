@@ -46,10 +46,6 @@ export const RiderListItem: React.FC<RiderListItemProps> = ({
   
   if (isSelected) {
     bgColor = 'bg-blue-100';
-  } else if (rider.instagram) {
-    // Subtle highlight for riders with Instagram
-    bgColor = bgColor || 'bg-gradient-to-r from-pink-50 to-purple-50';
-    borderClass = 'border-l-2 border-pink-300';
   }
 
   return (
