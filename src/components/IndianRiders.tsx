@@ -712,7 +712,7 @@ const IndianRiders: React.FC = () => {
                                 } else {
                                   // Calculate elapsed time from wave start
                                   const elapsed = calculateElapsedTime(rider.rider_no, checkpoint.time);
-                                  if (elapsed !== null) {
+                                  if (elapsed !== null && elapsed > 0) {
                                     elapsedMinutes = elapsed;
                                     elapsedFormatted = formatElapsedTime(elapsed);
                                   }
@@ -737,11 +737,16 @@ const IndianRiders: React.FC = () => {
                                 return bTime.localeCompare(aTime);
                               });
                             } else {
-                              // Sort by elapsed time (fastest first)
-                              ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => a.elapsedMinutes - b.elapsedMinutes);
+                              // Sort by elapsed time (fastest first), filtering out invalid times
+                              ridersWithElapsedTime.sort((a: RiderWithElapsedTime, b: RiderWithElapsedTime) => {
+                                // Put riders with valid times first
+                                if (a.elapsedMinutes <= 0 && b.elapsedMinutes > 0) return 1;
+                                if (a.elapsedMinutes > 0 && b.elapsedMinutes <= 0) return -1;
+                                return a.elapsedMinutes - b.elapsedMinutes;
+                              });
                             }
                             
-                            return ridersWithElapsedTime.map(({ rider, checkpoint, elapsedFormatted }: RiderWithElapsedTime, index: number) => {
+                            return ridersWithElapsedTime.map(({ rider, checkpoint, elapsedFormatted, elapsedMinutes }: RiderWithElapsedTime, index: number) => {
                               if (!checkpoint) return null;
 
                               return (
@@ -768,12 +773,14 @@ const IndianRiders: React.FC = () => {
                                         <span className="text-xs ml-1">({calculateTimeAgo(checkpoint.time)})</span>
                                       )}
                                     </span>
-                                    <Badge 
-                                      variant={sortMode === 'rank' && index < 3 ? "default" : "secondary"} 
-                                      className="text-xs px-2 py-0 min-w-[60px] text-center"
-                                    >
-                                      {elapsedFormatted}
-                                    </Badge>
+                                    {elapsedMinutes > 0 && (
+                                      <Badge 
+                                        variant={sortMode === 'rank' && index < 3 ? "default" : "secondary"} 
+                                        className="text-xs px-2 py-0 min-w-[60px] text-center"
+                                      >
+                                        {elapsedFormatted}
+                                      </Badge>
+                                    )}
                                   </div>
                                 </div>
                               );

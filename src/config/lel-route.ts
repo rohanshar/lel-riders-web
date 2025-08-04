@@ -253,13 +253,32 @@ export const calculateElapsedTime = (
       const year = eventDate.split('-')[0];
       checkpointDateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} ${time}:00`;
     } else {
-      // Format: "Sunday 08:46"
+      // Format: "Sunday 08:46" or "Monday 02:29"
       const parts = checkpointTime.split(' ');
+      const dayName = parts[0];
       const time = parts[parts.length - 1];
       if (!time || !time.includes(':')) return null;
       
-      // For now, assume it's the same day as the event start
-      checkpointDateStr = `${eventDate} ${time}:00`;
+      // Map day names to dates (assuming event starts on Sunday August 3, 2025)
+      const eventStartDate = new Date(eventDate);
+      const eventDayName = eventStartDate.toLocaleDateString('en-US', { weekday: 'long' });
+      
+      // Calculate the date based on day name
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const eventDayIndex = dayNames.indexOf(eventDayName);
+      const checkpointDayIndex = dayNames.indexOf(dayName);
+      
+      let dayOffset = 0;
+      if (checkpointDayIndex >= 0 && eventDayIndex >= 0) {
+        dayOffset = checkpointDayIndex - eventDayIndex;
+        if (dayOffset < 0) dayOffset += 7; // Handle week wraparound
+      }
+      
+      const checkpointDate = new Date(eventDate);
+      checkpointDate.setDate(checkpointDate.getDate() + dayOffset);
+      
+      const [year, month, day] = checkpointDate.toISOString().split('T')[0].split('-');
+      checkpointDateStr = `${year}-${month}-${day} ${time}:00`;
     }
     
     const checkpointDate = new Date(checkpointDateStr);
