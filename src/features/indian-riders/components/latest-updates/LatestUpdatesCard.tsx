@@ -29,18 +29,36 @@ export const LatestUpdatesCard: React.FC<LatestUpdatesCardProps> = ({ updates })
   if (updates.length === 0) return null;
   
   const getTimeAgo = (timestamp: Date) => {
-    const diff = currentTime.getTime() - timestamp.getTime();
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
+    // Get current UK time for accurate comparison
+    const ukTimeString = currentTime.toLocaleString('en-US', { 
+      timeZone: 'Europe/London',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
     
-    if (seconds < 60) {
-      return `${seconds}s ago`;
-    } else if (minutes < 60) {
-      const secs = seconds % 60;
-      return minutes === 1 ? `1 min ${secs}s ago` : `${minutes} mins ${secs}s ago`;
+    // Parse UK time string to get actual UK time as Date object
+    const [datePart, timePart] = ukTimeString.split(', ');
+    const [month, day, year] = datePart.split('/');
+    const [hours, minutes, seconds] = timePart.split(':');
+    const ukCurrentTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes), parseInt(seconds));
+    
+    const diff = ukCurrentTime.getTime() - timestamp.getTime();
+    const totalSeconds = Math.floor(diff / 1000);
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    
+    if (totalSeconds < 60) {
+      return `${totalSeconds}s ago`;
+    } else if (totalMinutes < 60) {
+      const secs = totalSeconds % 60;
+      return totalMinutes === 1 ? `1 min ${secs}s ago` : `${totalMinutes} mins ${secs}s ago`;
     } else {
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
+      const hours = Math.floor(totalMinutes / 60);
+      const mins = totalMinutes % 60;
       return `${hours}h ${mins}m ago`;
     }
   };

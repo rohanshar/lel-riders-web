@@ -30,7 +30,22 @@ export const useLatestUpdates = (riders: Rider[]): LatestUpdate[] => {
           // Parse the checkpoint time
           // Get current London time for comparison
           const now = new Date();
-          const londonTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
+          const ukTimeString = now.toLocaleString('en-US', { 
+            timeZone: 'Europe/London',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+          });
+          
+          // Parse UK time string to get actual UK time as Date object
+          const [datePart, timePart] = ukTimeString.split(', ');
+          const [month, day, year] = datePart.split('/');
+          const [hours, minutes, seconds] = timePart.split(':');
+          const londonTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes), parseInt(seconds));
           let checkpointDate: Date;
           
           if (lastCheckpoint.time.includes('/')) {
