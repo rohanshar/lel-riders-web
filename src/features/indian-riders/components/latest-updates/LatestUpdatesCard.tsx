@@ -22,7 +22,7 @@ export const LatestUpdatesCard: React.FC<LatestUpdatesCardProps> = ({ updates })
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000);
+    }, 60000); // Update every minute instead of every second
     return () => clearInterval(timer);
   }, []);
   
@@ -48,17 +48,18 @@ export const LatestUpdatesCard: React.FC<LatestUpdatesCardProps> = ({ updates })
     const ukCurrentTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes), parseInt(seconds));
     
     const diff = ukCurrentTime.getTime() - timestamp.getTime();
-    const totalSeconds = Math.floor(diff / 1000);
-    const totalMinutes = Math.floor(totalSeconds / 60);
+    const totalMinutes = Math.floor(diff / 1000 / 60);
     
-    if (totalSeconds < 60) {
-      return `${totalSeconds}s ago`;
+    if (totalMinutes < 1) {
+      return 'just now';
     } else if (totalMinutes < 60) {
-      const secs = totalSeconds % 60;
-      return totalMinutes === 1 ? `1 min ${secs}s ago` : `${totalMinutes} mins ${secs}s ago`;
+      return totalMinutes === 1 ? '1 min ago' : `${totalMinutes} mins ago`;
     } else {
       const hours = Math.floor(totalMinutes / 60);
       const mins = totalMinutes % 60;
+      if (mins === 0) {
+        return `${hours}h ago`;
+      }
       return `${hours}h ${mins}m ago`;
     }
   };
