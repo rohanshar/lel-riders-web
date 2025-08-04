@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import type { Rider, Checkpoint } from '../../types';
 import type { Control } from '../../types/weather';
 import type { ControlWeatherData } from '../../services/weatherService';
-import { CompactWeatherDisplay, ExtendedWeatherDisplay } from '../shared/CompactWeatherDisplay';
+import { CompactWeatherDisplay } from '../shared/CompactWeatherDisplay';
 import { calculateTimeAgo } from '../../utils/riderCalculations';
 import { RiderList } from './RiderList';
 import { WeatherModal } from '../shared/WeatherModal';
@@ -226,12 +226,6 @@ export const ControlCard: React.FC<ControlCardProps> = ({
         
         {isExpanded && (
           <CardContent className="pt-0 pb-2 sm:pb-3 px-2 sm:px-6">
-            {weather && (
-              <div className="mb-3">
-                <ExtendedWeatherDisplay weather={weather} control={control} />
-              </div>
-            )}
-            
             {riderCount > 0 ? (
               <>
                 <div className="mb-2 sm:mb-3">
