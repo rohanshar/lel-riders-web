@@ -628,8 +628,8 @@ const IndianRiders: React.FC = () => {
         </CardContent>
       </Card>
 
-          {/* Timeline View */}
-          <div className="space-y-3">
+          {/* Timeline View - Stepper Design */}
+          <div className="relative">
             {(() => {
               // Create merged controls list, treating Writtle and London as "Start"
               const mergedControls = trackingData.event.controls.reduce((acc: any[], control: any) => {
@@ -644,8 +644,11 @@ const IndianRiders: React.FC = () => {
                 return [...acc, control];
               }, [] as Control[]);
 
-              return mergedControls.slice(0, 10).map((control: any) => {
+              const controlsToShow = mergedControls.slice(0, 10);
+
+              return controlsToShow.map((control: any, index: number) => {
                 const isStart = control.name === 'Start';
+                const isLast = index === controlsToShow.length - 1;
                 const cardId = control.id || control.name;
                 const isExpanded = expandedCards.has(cardId);
                 
@@ -674,45 +677,67 @@ const IndianRiders: React.FC = () => {
                 // Get distances for both start types
                 const writtleDistance = WRITTLE_START_CONTROLS.find(c => c.name === control.name)?.km || 0;
                 const londonDistance = LONDON_START_CONTROLS.find(c => c.name === control.name)?.km || 0;
-                
-                // Format the distance display
-                const getDistanceDisplay = () => {
-                  if (isStart) return '';
-                  
-                  if (hasLondonRiders && hasWrittleRiders) {
-                    // Show Writtle distance with note about London start
-                    return ` (${writtleDistance} km, +20 for London start)`;
-                  } else if (hasLondonRiders) {
-                    // Only London riders
-                    return ` (${londonDistance} km)`;
-                  } else {
-                    // Only Writtle riders or no riders
-                    return ` (${writtleDistance} km)`;
-                  }
-                };
 
                 return (
-                  <Card key={cardId} className="overflow-hidden">
-                    <CardHeader className="py-3">
-                      <div 
-                        className="flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors rounded p-2 -m-2"
-                        onClick={() => toggleCardExpansion(cardId)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <CardTitle className="text-base">
-                            {control.name}{getDistanceDisplay()}
-                          </CardTitle>
-                          <Badge variant="secondary" className="text-xs">
-                            {riderCount} {riderCount === 1 ? 'rider' : 'riders'}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">{control.leg} Leg</span>
-                          {riderCount > 0 && (
-                            isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
-                          )}
-                        </div>
+                  <div key={cardId} className="flex gap-4 relative">
+                    {/* Left side - Circle and Line */}
+                    <div className="flex flex-col items-center">
+                      {/* Circle with KM */}
+                      <div className={`
+                        w-14 h-14 rounded-full flex flex-col items-center justify-center z-10
+                        ${riderCount > 0 ? 'bg-primary text-primary-foreground' : 'bg-gray-200 text-gray-600'}
+                        ${isStart ? 'ring-4 ring-primary/20' : ''}
+                        transition-all duration-200
+                      `}>
+                        <span className="text-xs font-bold">{isStart ? 'START' : `${writtleDistance}`}</span>
+                        {!isStart && <span className="text-[10px]">km</span>}
                       </div>
+                      
+                      {/* Connecting Line */}
+                      {!isLast && (
+                        <div className={`
+                          w-0.5 flex-1 mt-2
+                          ${riderCount > 0 ? 'bg-primary/30' : 'bg-gray-200'}
+                        `} style={{ minHeight: '100px' }} />
+                      )}
+                    </div>
+
+                    {/* Right side - Control Card */}
+                    <Card className={`
+                      flex-1 mb-6 overflow-hidden cursor-pointer
+                      ${riderCount === 0 ? 'opacity-60' : ''}
+                      hover:shadow-md transition-all duration-200
+                    `}
+                    onClick={() => riderCount > 0 && toggleCardExpansion(cardId)}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-3 mb-1">
+                              <CardTitle className="text-lg font-semibold">
+                                {control.name}
+                              </CardTitle>
+                              {hasLondonRiders && hasWrittleRiders && (
+                                <span className="text-xs text-muted-foreground">
+                                  +20km for London start
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {riderCount} {riderCount === 1 ? 'rider' : 'riders'}
+                              </span>
+                              <span>•</span>
+                              <span>{control.leg} Leg</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center">
+                            {riderCount > 0 && (
+                              isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />
+                            )}
+                          </div>
+                        </div>
                       {!isExpanded && riderCount > 0 && (() => {
                         // Define types for the parsed data
                         interface RiderWithTimestamp {
@@ -944,7 +969,8 @@ const IndianRiders: React.FC = () => {
                         </div>
                       </CardContent>
                     )}
-                  </Card>
+                    </Card>
+                  </div>
                 );
               });
             })()}
