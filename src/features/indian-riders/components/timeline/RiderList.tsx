@@ -56,8 +56,12 @@ export const RiderList: React.FC<RiderListProps> = ({
                  cp.name === 'London' ||
                  cp.name.includes('Start');
         }
-        return cp.name === control.name || 
-               cp.name.includes(control.name);
+        // For return controls, match southbound checkpoints
+        if (control.isReturn) {
+          return cp.name === `${control.name} S`;
+        }
+        // For northbound controls
+        return cp.name === `${control.name} N` || cp.name === control.name;
       });
       
       // Check if rider has progressed beyond this control
@@ -65,7 +69,12 @@ export const RiderList: React.FC<RiderListProps> = ({
         if (isStart) {
           return cp.name === 'Start' || cp.name === 'Writtle' || cp.name === 'London';
         }
-        return cp.name === control.name || cp.name.includes(control.name);
+        // For return controls, match southbound checkpoints
+        if (control.isReturn) {
+          return cp.name === `${control.name} S`;
+        }
+        // For northbound controls
+        return cp.name === `${control.name} N` || cp.name === control.name;
       });
       const hasProgressedBeyond = currentControlIndex >= 0 && currentControlIndex < rider.checkpoints.length - 1;
       
@@ -155,7 +164,12 @@ export const RiderList: React.FC<RiderListProps> = ({
       if (isStart) {
         return cp.name === 'Start' || cp.name === 'Writtle' || cp.name === 'London';
       }
-      return cp.name === control.name || cp.name.includes(control.name);
+      // For return controls, only count riders who reached the southbound checkpoint
+      if (control.isReturn) {
+        return cp.name === `${control.name} S`;
+      }
+      // For northbound controls
+      return cp.name === `${control.name} N` || cp.name === control.name;
     });
     return hasCheckpoint;
   }).length - processedRiders.length;

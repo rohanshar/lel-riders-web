@@ -54,7 +54,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         return rider.checkpoints.some(cp => {
           // For return controls, only match southbound checkpoints (with "S" suffix)
           if (control.isReturn) {
-            return cp.name === `${control.name} S` || cp.name === control.name;
+            return cp.name === `${control.name} S`;
           }
           // For northbound controls, match northbound checkpoints (with "N" suffix) or exact name
           return cp.name === `${control.name} N` || cp.name === control.name;
@@ -75,7 +75,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
         
         // For other controls, check if this is their current location with proper direction
         if (control.isReturn) {
-          return lastCheckpoint.name === `${control.name} S` || lastCheckpoint.name === control.name;
+          return lastCheckpoint.name === `${control.name} S`;
         }
         return lastCheckpoint.name === `${control.name} N` || lastCheckpoint.name === control.name;
       }).length;

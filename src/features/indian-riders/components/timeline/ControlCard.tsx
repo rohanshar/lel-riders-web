@@ -68,7 +68,7 @@ export const ControlCard: React.FC<ControlCardProps> = ({
       const checkpoint = rider.checkpoints.find((cp: Checkpoint) => {
         // Match checkpoints with proper direction
         if (control.isReturn) {
-          return cp.name === `${control.name} S` || cp.name === control.name;
+          return cp.name === `${control.name} S`;
         }
         return cp.name === `${control.name} N` || cp.name === control.name;
       });
