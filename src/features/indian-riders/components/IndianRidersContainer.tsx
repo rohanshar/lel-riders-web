@@ -13,7 +13,6 @@ import { RefreshButton } from './shared/RefreshButton';
 import { LatestUpdatesCard } from './latest-updates/LatestUpdatesCard';
 import { TimelineView } from './timeline/TimelineView';
 import { RiderDetailDialog } from './rider-detail/RiderDetailDialog';
-import { PauseBanner } from './shared/PauseBanner';
 
 // Hooks
 import { useIndianRidersData } from '../hooks/useIndianRidersData';
@@ -184,8 +183,25 @@ export const IndianRidersContainer: React.FC = () => {
       </div>
 
       <div className="space-y-6">
-          {/* Pause Banner - Auto-hides after 3:30 PM UK time */}
-          <PauseBanner />
+          {/* Event Cancellation Notice */}
+          <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-red-900">Event Cancelled</h3>
+                <p className="mt-1 text-sm text-red-800">
+                  The London-Edinburgh-London 2025 event has been called off. All riders have been notified to stop and make arrangements to return safely.
+                </p>
+                <p className="mt-2 text-sm text-gray-700">
+                  <strong>Note:</strong> We will continue tracking southbound riders until they safely reach London.
+                </p>
+              </div>
+            </div>
+          </div>
           
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

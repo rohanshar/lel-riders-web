@@ -87,17 +87,8 @@ export const calculateAverageSpeed = (rider: Rider): number => {
 };
 
 export const shouldBeMarkedDNF = (rider: Rider): boolean => {
-  if (rider.status === 'dnf' || rider.status === 'finished') return rider.status === 'dnf';
-  if (rider.checkpoints.length === 0) return false;
-  
-  const lastCheckpoint = rider.checkpoints[rider.checkpoints.length - 1];
-  if (!lastCheckpoint.time) return false;
-  
-  // Get hours since last checkpoint
-  const hoursSinceLastCheckpoint = getHoursSinceCheckpoint(lastCheckpoint.time);
-  
-  // Only mark as DNF if they've been at the same control for 24+ hours
-  return hoursSinceLastCheckpoint >= 24;
+  // Only return true if the rider is explicitly marked as DNF in the data
+  return rider.status === 'dnf';
 };
 
 export const getHoursSinceCheckpoint = (checkpointTime: string): number => {

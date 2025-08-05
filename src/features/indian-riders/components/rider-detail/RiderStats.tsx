@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { MapPin, TrendingUp, Activity, AlertCircle } from 'lucide-react';
+import { MapPin, TrendingUp, Activity } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import type { Rider } from '../../types';
-import { calculateRiderDistance, calculateAverageSpeed, shouldBeMarkedDNF, calculateTimeAgo } from '../../utils/riderCalculations';
+import { calculateRiderDistance, calculateAverageSpeed, shouldBeMarkedDNF } from '../../utils/riderCalculations';
 import { formatElapsedTime, formatExpectedArrival } from '../../utils/timeFormatters';
 import { getControlsForRider, getTotalDistanceForRider } from '@/config/lel-route';
 
@@ -102,34 +102,9 @@ export const RiderStats: React.FC<RiderStatsProps> = ({ rider, allRiders }) => {
       hoursToNext
     };
   }, [rider, currentDistance, averageSpeed]);
-  
-  // Get time at last checkpoint for DNF explanation
-  const lastCheckpointTime = rider.checkpoints.length > 0 
-    ? calculateTimeAgo(rider.checkpoints[rider.checkpoints.length - 1].time)
-    : null;
 
   return (
     <div>
-      {isDNF && lastCheckpointTime && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h4 className="font-semibold text-red-900 mb-1">DNF Status Explanation</h4>
-              <p className="text-sm text-red-800 mb-2">
-                This rider has been marked as DNF because their last checkpoint update was <strong>{lastCheckpointTime}</strong> at <strong>{rider.last_checkpoint || 'Unknown'}</strong>.
-              </p>
-              <p className="text-sm text-red-800 mb-2">
-                Riders are automatically marked as DNF when no checkpoint update is received for more than 24 hours.
-              </p>
-              <p className="text-sm text-green-700 font-medium">
-                ✓ The rider will be automatically marked as active again when they check in at the next control.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-      
       <h3 className="text-lg font-semibold mb-3">Current Status</h3>
       <div className="space-y-3">
         <div className="flex items-center gap-2">
